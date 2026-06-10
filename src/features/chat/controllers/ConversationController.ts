@@ -48,6 +48,9 @@ export class ConversationController {
       try {
         this.sessionHandle = await this.runtime.start({
           cwd: '', // Will be set by main.ts
+          model: tab.model || undefined,
+          effort: tab.effort || undefined,
+          permissionMode: tab.permissionMode,
         });
         this.setupEventListeners(tab.id);
       } catch (err) {

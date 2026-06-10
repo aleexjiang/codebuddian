@@ -325,6 +325,23 @@ var import_obsidian2 = require("obsidian");
 // src/features/chat/constants.ts
 var CHAT_VIEW_TYPE = "codebuddian-chat";
 var CHAT_ICON = "message-circle";
+var AVAILABLE_MODELS = [
+  { id: "", label: "Default (CLI default)" },
+  { id: "claude-opus-4.8", label: "Claude Opus 4.8" },
+  { id: "claude-sonnet-4.7", label: "Claude Sonnet 4.7" },
+  { id: "gpt-5.5", label: "GPT-5.5" },
+  { id: "gpt-5.5-mini", label: "GPT-5.5 Mini" },
+  { id: "kimi-k2.6", label: "Kimi K2.6" },
+  { id: "deepseek-v4-pro", label: "DeepSeek V4 Pro" },
+  { id: "deepseek-v4-lite", label: "DeepSeek V4 Lite" },
+  { id: "gemini-3.5-pro", label: "Gemini 3.5 Pro" },
+  { id: "qwen-4.5-max", label: "Qwen 4.5 Max" }
+];
+var EFFORT_OPTIONS = [
+  { id: "low", label: "Low" },
+  { id: "medium", label: "Medium" },
+  { id: "high", label: "High" }
+];
 
 // src/features/chat/state/types.ts
 function createEmptyTab(id) {
@@ -336,6 +353,8 @@ function createEmptyTab(id) {
     permissionMode: "default",
     isPlanMode: false,
     sessionId: null,
+    model: "",
+    effort: "medium",
     createdAt: Date.now(),
     updatedAt: Date.now()
   };
@@ -369,7 +388,7 @@ var ChatStateManager = class {
     return tab;
   }
   removeTab(id) {
-    this.state.tabs = this.state.tabs.filter((t) => t.id !== id);
+    this.state.tabs = this.state.tabs.filter((t2) => t2.id !== id);
     if (this.state.activeTabId === id) {
       this.state.activeTabId = this.state.tabs.length > 0 ? this.state.tabs[0].id : null;
     }
@@ -380,17 +399,17 @@ var ChatStateManager = class {
     this.notify();
   }
   getActiveTab() {
-    return this.state.tabs.find((t) => t.id === this.state.activeTabId);
+    return this.state.tabs.find((t2) => t2.id === this.state.activeTabId);
   }
   updateTab(id, update) {
-    const tab = this.state.tabs.find((t) => t.id === id);
+    const tab = this.state.tabs.find((t2) => t2.id === id);
     if (tab) {
       Object.assign(tab, update, { updatedAt: Date.now() });
       this.notify();
     }
   }
   addMessage(tabId, message) {
-    const tab = this.state.tabs.find((t) => t.id === tabId);
+    const tab = this.state.tabs.find((t2) => t2.id === tabId);
     if (tab) {
       tab.messages.push(message);
       tab.updatedAt = Date.now();
@@ -398,7 +417,7 @@ var ChatStateManager = class {
     }
   }
   updateLastAssistantMessage(tabId, content) {
-    const tab = this.state.tabs.find((t) => t.id === tabId);
+    const tab = this.state.tabs.find((t2) => t2.id === tabId);
     if (tab) {
       const lastAssistant = [...tab.messages].reverse().find((m) => m.role === "assistant");
       if (lastAssistant) {
@@ -410,7 +429,7 @@ var ChatStateManager = class {
     }
   }
   finalizeLastAssistantMessage(tabId) {
-    const tab = this.state.tabs.find((t) => t.id === tabId);
+    const tab = this.state.tabs.find((t2) => t2.id === tabId);
     if (tab) {
       const lastAssistant = [...tab.messages].reverse().find((m) => m.role === "assistant");
       if (lastAssistant) {
@@ -438,7 +457,7 @@ var Tab = class {
     this.stateManager = stateManager;
   }
   get data() {
-    return this.stateManager.getState().tabs.find((t) => t.id === this.id);
+    return this.stateManager.getState().tabs.find((t2) => t2.id === this.id);
   }
   isActive() {
     return this.stateManager.getState().activeTabId === this.id;
@@ -824,8 +843,11 @@ var ConversationController = class {
     if (!this.sessionHandle && this.runtime) {
       try {
         this.sessionHandle = await this.runtime.start({
-          cwd: ""
+          cwd: "",
           // Will be set by main.ts
+          model: tab.model || void 0,
+          effort: tab.effort || void 0,
+          permissionMode: tab.permissionMode
         });
         this.setupEventListeners(tab.id);
       } catch (err) {
@@ -955,6 +977,61 @@ var InputController = class {
   }
 };
 
+// src/i18n/i18n.ts
+var zhCN = {
+  "chat.placeholder": "\u5411 CodeBuddy \u53D1\u9001\u6D88\u606F\u2026\uFF08Enter \u53D1\u9001\uFF0CShift+Enter \u6362\u884C\uFF09",
+  "chat.send": "\u53D1\u9001",
+  "chat.newTab": "\u65B0\u5BF9\u8BDD",
+  "chat.cancel": "\u505C\u6B62",
+  "chat.planMode": "\u8BA1\u5212\u6A21\u5F0F",
+  "chat.model": "\u6A21\u578B",
+  "chat.effort": "\u6295\u5165\u5EA6",
+  "settings.title": "Codebuddian \u8BBE\u7F6E",
+  "settings.cliPath": "CodeBuddy CLI \u8DEF\u5F84",
+  "settings.model": "\u6A21\u578B",
+  "settings.permissionMode": "\u6743\u9650\u6A21\u5F0F",
+  "approval.title": "\u9700\u8981\u5BA1\u6279",
+  "approval.approve": "\u6279\u51C6",
+  "approval.deny": "\u62D2\u7EDD",
+  "error.cliNotFound": "\u672A\u627E\u5230 CodeBuddy CLI\uFF0C\u8BF7\u5728\u8BBE\u7F6E\u4E2D\u914D\u7F6E\u8DEF\u5F84",
+  "error.sessionFailed": "\u4F1A\u8BDD\u542F\u52A8\u5931\u8D25"
+};
+var enUS = {
+  "chat.placeholder": "Message CodeBuddy\u2026 (Enter to send, Shift+Enter for newline)",
+  "chat.send": "Send",
+  "chat.newTab": "New chat",
+  "chat.cancel": "Cancel",
+  "chat.planMode": "Plan mode",
+  "chat.model": "Model",
+  "chat.effort": "Effort",
+  "settings.title": "Codebuddian Settings",
+  "settings.cliPath": "CodeBuddy CLI path",
+  "settings.model": "Model",
+  "settings.permissionMode": "Permission mode",
+  "approval.title": "Approval required",
+  "approval.approve": "Approve",
+  "approval.deny": "Deny",
+  "error.cliNotFound": "CodeBuddy CLI not found, please set path in settings",
+  "error.sessionFailed": "Session failed to start"
+};
+var translations = {
+  "zh-CN": zhCN,
+  "en": enUS,
+  "en-US": enUS
+};
+var currentLocale = "en";
+function setLocale(locale) {
+  currentLocale = locale;
+}
+function t(key, ...args) {
+  const dict = translations[currentLocale] || translations["en"];
+  let str = dict[key] || key;
+  args.forEach((arg, i) => {
+    str = str.replace(`{${i}}`, String(arg));
+  });
+  return str;
+}
+
 // src/features/chat/CodebuddianView.ts
 var CodebuddianChatView = class extends import_obsidian2.ItemView {
   stateManager;
@@ -966,6 +1043,9 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
   messagesContainer;
   textareaEl;
   sendButtonEl;
+  modelSelectEl;
+  effortSelectEl;
+  headerEl;
   runtime = null;
   constructor(leaf) {
     super(leaf);
@@ -990,6 +1070,37 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
     const container = this.containerEl.children[1];
     container.empty();
     container.addClass("codebuddian-chat-container");
+    this.headerEl = container.createDiv({ cls: "codebuddian-header" });
+    const brandEl = this.headerEl.createDiv({ cls: "codebuddian-brand" });
+    brandEl.createEl("span", { cls: "codebuddian-brand-icon", text: "\u{1F916}" });
+    brandEl.createEl("span", { cls: "codebuddian-brand-text", text: "CodeBuddy" });
+    const controlsEl = this.headerEl.createDiv({ cls: "codebuddian-header-controls" });
+    const modelWrap = controlsEl.createDiv({ cls: "codebuddian-control-group" });
+    modelWrap.createEl("label", { cls: "codebuddian-control-label", text: t("chat.model") });
+    this.modelSelectEl = modelWrap.createEl("select", { cls: "codebuddian-select" });
+    AVAILABLE_MODELS.forEach((m) => {
+      const opt = this.modelSelectEl.createEl("option", { text: m.label });
+      opt.value = m.id;
+    });
+    this.modelSelectEl.addEventListener("change", () => {
+      const tab = this.stateManager.getActiveTab();
+      if (tab) {
+        this.stateManager.updateTab(tab.id, { model: this.modelSelectEl.value });
+      }
+    });
+    const effortWrap = controlsEl.createDiv({ cls: "codebuddian-control-group" });
+    effortWrap.createEl("label", { cls: "codebuddian-control-label", text: t("chat.effort") });
+    this.effortSelectEl = effortWrap.createEl("select", { cls: "codebuddian-select" });
+    EFFORT_OPTIONS.forEach((e) => {
+      const opt = this.effortSelectEl.createEl("option", { text: e.label });
+      opt.value = e.id;
+    });
+    this.effortSelectEl.addEventListener("change", () => {
+      const tab = this.stateManager.getActiveTab();
+      if (tab) {
+        this.stateManager.updateTab(tab.id, { effort: this.effortSelectEl.value });
+      }
+    });
     const tabBarEl = container.createDiv({ cls: "codebuddian-tab-bar-container" });
     this.tabBar = new TabBar(tabBarEl, {
       onTabClick: (id) => this.stateManager.setActiveTab(id),
@@ -1034,13 +1145,17 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
   render() {
     const state = this.stateManager.getState();
     this.tabBar.render(
-      state.tabs.map((t) => ({
-        id: t.id,
-        title: t.title,
-        isActive: t.id === state.activeTabId
+      state.tabs.map((t2) => ({
+        id: t2.id,
+        title: t2.title,
+        isActive: t2.id === state.activeTabId
       }))
     );
     const activeTab = this.stateManager.getActiveTab();
+    if (activeTab) {
+      this.modelSelectEl.value = activeTab.model;
+      this.effortSelectEl.value = activeTab.effort;
+    }
     if (activeTab) {
       this.messageRenderer.renderMessages(activeTab.messages);
       if (this.messagesContainer) {
@@ -1285,12 +1400,6 @@ function registerIcons() {
 			<text x="50" y="65" font-size="50" text-anchor="middle" fill="currentColor">\u{1F916}</text>
 		</svg>
 	`);
-}
-
-// src/i18n/i18n.ts
-var currentLocale = "en";
-function setLocale(locale) {
-  currentLocale = locale;
 }
 
 // src/utils/logger.ts

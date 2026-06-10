@@ -1,5 +1,5 @@
 import { ItemView, WorkspaceLeaf, Notice } from 'obsidian';
-import { CHAT_VIEW_TYPE, CHAT_ICON } from './constants';
+import { CHAT_VIEW_TYPE, CHAT_ICON, AVAILABLE_MODELS, EFFORT_OPTIONS } from './constants';
 import { ChatStateManager } from './state/ChatState';
 import { TabManager } from './tabs/TabManager';
 import { TabBar } from './tabs/TabBar';
@@ -7,6 +7,7 @@ import { MessageRenderer } from './rendering/MessageRenderer';
 import { ConversationController } from './controllers/ConversationController';
 import { InputController } from './controllers/InputController';
 import type { ChatRuntime } from '../../core/runtime/ChatRuntime';
+import { t } from '../../i18n/i18n';
 
 export class CodebuddianChatView extends ItemView {
   private stateManager: ChatStateManager;
@@ -18,6 +19,9 @@ export class CodebuddianChatView extends ItemView {
   private messagesContainer!: HTMLElement;
   private textareaEl!: HTMLTextAreaElement;
   private sendButtonEl!: HTMLButtonElement;
+  private modelSelectEl!: HTMLSelectElement;
+  private effortSelectEl!: HTMLSelectElement;
+  private headerEl!: HTMLElement;
   private runtime: ChatRuntime | null = null;
 
   constructor(leaf: WorkspaceLeaf) {
@@ -48,6 +52,47 @@ export class CodebuddianChatView extends ItemView {
     const container = this.containerEl.children[1] as HTMLElement;
     container.empty();
     container.addClass('codebuddian-chat-container');
+
+    // ===== Header / Toolbar =====
+    this.headerEl = container.createDiv({ cls: 'codebuddian-header' });
+
+    // Brand
+    const brandEl = this.headerEl.createDiv({ cls: 'codebuddian-brand' });
+    brandEl.createEl('span', { cls: 'codebuddian-brand-icon', text: '🤖' });
+    brandEl.createEl('span', { cls: 'codebuddian-brand-text', text: 'CodeBuddy' });
+
+    // Controls group
+    const controlsEl = this.headerEl.createDiv({ cls: 'codebuddian-header-controls' });
+
+    // Model selector
+    const modelWrap = controlsEl.createDiv({ cls: 'codebuddian-control-group' });
+    modelWrap.createEl('label', { cls: 'codebuddian-control-label', text: t('chat.model') });
+    this.modelSelectEl = modelWrap.createEl('select', { cls: 'codebuddian-select' });
+    AVAILABLE_MODELS.forEach(m => {
+      const opt = this.modelSelectEl.createEl('option', { text: m.label });
+      opt.value = m.id;
+    });
+    this.modelSelectEl.addEventListener('change', () => {
+      const tab = this.stateManager.getActiveTab();
+      if (tab) {
+        this.stateManager.updateTab(tab.id, { model: this.modelSelectEl.value });
+      }
+    });
+
+    // Effort selector
+    const effortWrap = controlsEl.createDiv({ cls: 'codebuddian-control-group' });
+    effortWrap.createEl('label', { cls: 'codebuddian-control-label', text: t('chat.effort') });
+    this.effortSelectEl = effortWrap.createEl('select', { cls: 'codebuddian-select' });
+    EFFORT_OPTIONS.forEach(e => {
+      const opt = this.effortSelectEl.createEl('option', { text: e.label });
+      opt.value = e.id;
+    });
+    this.effortSelectEl.addEventListener('change', () => {
+      const tab = this.stateManager.getActiveTab();
+      if (tab) {
+        this.stateManager.updateTab(tab.id, { effort: this.effortSelectEl.value });
+      }
+    });
 
     // Tab bar
     const tabBarEl = container.createDiv({ cls: 'codebuddian-tab-bar-container' });
@@ -122,8 +167,14 @@ export class CodebuddianChatView extends ItemView {
       }))
     );
 
-    // Render messages for active tab
+    // Sync header controls with active tab
     const activeTab = this.stateManager.getActiveTab();
+    if (activeTab) {
+      this.modelSelectEl.value = activeTab.model;
+      this.effortSelectEl.value = activeTab.effort;
+    }
+
+    // Render messages for active tab
     if (activeTab) {
       this.messageRenderer.renderMessages(activeTab.messages);
 

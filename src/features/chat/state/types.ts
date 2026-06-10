@@ -8,6 +8,8 @@ export interface ChatTab {
   permissionMode: PermissionMode;
   isPlanMode: boolean;
   sessionId: string | null;
+  model: string;
+  effort: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -28,6 +30,8 @@ export function createEmptyTab(id: string): ChatTab {
     permissionMode: 'default',
     isPlanMode: false,
     sessionId: null,
+    model: '',
+    effort: 'medium',
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };

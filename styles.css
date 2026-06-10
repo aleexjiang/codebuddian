@@ -12,6 +12,80 @@
   padding: 0;
 }
 
+/* ===== Header ===== */
+.codebuddian-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.codebuddian-brand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text-normal);
+  flex-shrink: 0;
+}
+
+.codebuddian-brand-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.codebuddian-brand-text {
+  background: linear-gradient(135deg, var(--interactive-accent), var(--text-accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.codebuddian-header-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.codebuddian-control-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.codebuddian-control-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.codebuddian-select {
+  font-size: 12px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  cursor: pointer;
+  outline: none;
+  min-width: 100px;
+}
+
+.codebuddian-select:focus {
+  border-color: var(--interactive-accent);
+}
+
+.codebuddian-select option {
+  background: var(--background-primary);
+  color: var(--text-normal);
+}
+
 /* ===== Tab Bar ===== */
 .codebuddian-tab-bar-container {
   display: flex;
