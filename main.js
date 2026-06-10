@@ -46753,6 +46753,18 @@ var SdkSessionHandle = class {
         }
       }
     }
+    if (evt !== "*") {
+      const wildcardListeners = this.eventListeners.get("*");
+      if (wildcardListeners) {
+        for (const cb of wildcardListeners) {
+          try {
+            cb(event);
+          } catch (e) {
+            logger.error("[Session] Wildcard listener error:", e);
+          }
+        }
+      }
+    }
   }
 };
 

@@ -637,6 +637,7 @@ class SdkSessionHandle implements SessionHandle {
   }
 
   private emit(evt: string, event: SessionEvent): void {
+    // Fire listeners registered for this specific event type
     const listeners = this.eventListeners.get(evt);
     if (listeners) {
       for (const cb of listeners) {
@@ -644,6 +645,20 @@ class SdkSessionHandle implements SessionHandle {
           cb(event);
         } catch (e) {
           logger.error('[Session] Event listener error:', e);
+        }
+      }
+    }
+
+    // Also fire '*' wildcard listeners (catch-all for all event types)
+    if (evt !== '*') {
+      const wildcardListeners = this.eventListeners.get('*');
+      if (wildcardListeners) {
+        for (const cb of wildcardListeners) {
+          try {
+            cb(event);
+          } catch (e) {
+            logger.error('[Session] Wildcard listener error:', e);
+          }
         }
       }
     }
