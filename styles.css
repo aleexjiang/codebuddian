@@ -521,59 +521,188 @@
   border-color: var(--cb-brand);
 }
 
-/* ---- Mode selector buttons (Ask / Plan / Craft) ---- */
+/* ---- Mode dropdown (Ask / Plan / Craft) ---- */
 .codebuddian-mode-group {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  background: var(--background-secondary);
-  border-radius: 6px;
-  padding: 2px;
-  border: 1px solid var(--background-modifier-border);
+  position: relative;
 }
 
-.codebuddian-mode-btn {
+.codebuddian-mode-dropdown-btn {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
-  border-radius: 4px;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
+  gap: 5px;
+  padding: 3px 6px 3px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+  color: var(--text-normal);
   font-size: 11px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  min-width: 80px;
 }
 
-.codebuddian-mode-btn:hover {
-  color: var(--text-normal);
+.codebuddian-mode-dropdown-btn:hover {
   background: var(--background-modifier-hover);
+  border-color: var(--background-modifier-border-hover);
 }
 
-.codebuddian-mode-btn svg {
+.codebuddian-mode-dropdown-icon {
+  display: flex;
+  align-items: center;
+}
+
+.codebuddian-mode-dropdown-icon svg {
+  width: 13px;
+  height: 13px;
+}
+
+.codebuddian-mode-dropdown-label {
+  flex: 1;
+  text-align: start;
+  font-weight: 500;
+}
+
+.codebuddian-mode-dropdown-caret {
+  display: flex;
+  align-items: center;
+  color: var(--text-faint);
+  transition: transform 0.15s ease;
+}
+
+.codebuddian-mode-dropdown-caret svg {
   width: 12px;
   height: 12px;
 }
 
-.codebuddian-mode-btn.is-active {
-  background: var(--background-primary);
-  color: var(--text-normal);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+.codebuddian-mode-group.is-open .codebuddian-mode-dropdown-caret {
+  transform: rotate(180deg);
 }
 
-/* Mode-specific active colors */
-.codebuddian-mode-btn.is-active[data-mode="ask"] {
+/* Mode-specific button color */
+.codebuddian-mode-dropdown-btn[data-mode="ask"] {
   color: var(--cb-brand);
+  border-color: rgba(var(--cb-brand-rgb), 0.4);
+  background: rgba(var(--cb-brand-rgb), 0.08);
 }
 
-.codebuddian-mode-btn.is-active[data-mode="plan"] {
+.codebuddian-mode-dropdown-btn[data-mode="plan"] {
   color: var(--cb-plan);
+  border-color: rgba(92, 148, 140, 0.4);
+  background: rgba(92, 148, 140, 0.08);
 }
 
-.codebuddian-mode-btn.is-active[data-mode="craft"] {
+.codebuddian-mode-dropdown-btn[data-mode="craft"] {
   color: var(--cb-craft);
+  border-color: rgba(192, 132, 252, 0.4);
+  background: rgba(192, 132, 252, 0.08);
+}
+
+.codebuddian-mode-dropdown-btn[data-mode] .codebuddian-mode-dropdown-caret {
+  color: inherit;
+  opacity: 0.7;
+}
+
+/* Dropdown menu */
+.codebuddian-mode-menu {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  z-index: 100;
+  min-width: 220px;
+  padding: 4px;
+  border-radius: 8px;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: none;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.codebuddian-mode-group.is-open .codebuddian-mode-menu {
+  display: flex;
+  animation: cb-mode-menu-in 0.12s ease-out;
+}
+
+@keyframes cb-mode-menu-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.codebuddian-mode-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-normal);
+  cursor: pointer;
+  text-align: start;
+  transition: background 0.1s ease;
+  font-size: 12px;
+}
+
+.codebuddian-mode-menu-item:hover {
+  background: var(--background-modifier-hover);
+}
+
+.codebuddian-mode-menu-item.is-active {
+  background: var(--background-secondary);
+}
+
+.codebuddian-mode-menu-item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.codebuddian-mode-menu-item-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.codebuddian-mode-menu-item[data-mode="ask"] .codebuddian-mode-menu-item-icon {
+  color: var(--cb-brand);
+  background: rgba(var(--cb-brand-rgb), 0.12);
+}
+
+.codebuddian-mode-menu-item[data-mode="plan"] .codebuddian-mode-menu-item-icon {
+  color: var(--cb-plan);
+  background: rgba(92, 148, 140, 0.12);
+}
+
+.codebuddian-mode-menu-item[data-mode="craft"] .codebuddian-mode-menu-item-icon {
+  color: var(--cb-craft);
+  background: rgba(192, 132, 252, 0.12);
+}
+
+.codebuddian-mode-menu-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.codebuddian-mode-menu-item-label {
+  font-weight: 500;
+  font-size: 12px;
+  color: var(--text-normal);
+}
+
+.codebuddian-mode-menu-item-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.3;
 }
 
 /* ---- Stop button ---- */

@@ -45556,7 +45556,9 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
   modelSelectEl;
   effortSelectEl;
   stopBtnEl;
-  modeBtnEls = /* @__PURE__ */ new Map();
+  modeBtnEl;
+  modeBtnLabelEl;
+  modeMenuEl;
   inputWrapperEl;
   runtime = null;
   modelsLoaded = false;
@@ -45614,18 +45616,39 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
       }
     });
     const modeGroup = inputToolbar.createDiv({ cls: "codebuddian-toolbar-group codebuddian-mode-group" });
+    this.modeBtnEl = modeGroup.createEl("button", {
+      cls: "codebuddian-mode-dropdown-btn",
+      attr: { "aria-label": "Mode", "aria-haspopup": "true" }
+    });
+    const modeIconEl = this.modeBtnEl.createSpan({ cls: "codebuddian-mode-dropdown-icon" });
+    (0, import_obsidian2.setIcon)(modeIconEl, "message-circle");
+    this.modeBtnLabelEl = this.modeBtnEl.createSpan({ cls: "codebuddian-mode-dropdown-label", text: "Ask" });
+    const caretEl = this.modeBtnEl.createSpan({ cls: "codebuddian-mode-dropdown-caret" });
+    (0, import_obsidian2.setIcon)(caretEl, "chevron-down");
+    this.modeMenuEl = modeGroup.createDiv({ cls: "codebuddian-mode-menu" });
     for (const modeCfg of MODE_CONFIG) {
-      const btn = modeGroup.createEl("button", {
-        cls: "codebuddian-mode-btn",
-        attr: { "aria-label": modeCfg.desc, title: modeCfg.desc, "data-mode": modeCfg.id }
+      const item = this.modeMenuEl.createEl("button", {
+        cls: "codebuddian-mode-menu-item",
+        attr: { "data-mode": modeCfg.id, title: modeCfg.desc }
       });
-      (0, import_obsidian2.setIcon)(btn, modeCfg.icon);
-      btn.createSpan({ text: modeCfg.label, cls: "codebuddian-mode-label" });
-      btn.addEventListener("click", () => {
+      const itemIcon = item.createSpan({ cls: "codebuddian-mode-menu-item-icon" });
+      (0, import_obsidian2.setIcon)(itemIcon, modeCfg.icon);
+      const textWrap = item.createDiv({ cls: "codebuddian-mode-menu-item-text" });
+      textWrap.createDiv({ cls: "codebuddian-mode-menu-item-label", text: modeCfg.label });
+      textWrap.createDiv({ cls: "codebuddian-mode-menu-item-desc", text: modeCfg.desc });
+      item.addEventListener("click", (e) => {
+        e.stopPropagation();
         this.handleSetMode(modeCfg.id);
+        this.closeModeMenu();
       });
-      this.modeBtnEls.set(modeCfg.id, btn);
     }
+    this.modeBtnEl.addEventListener("click", (e) => {
+      e.stopPropagation();
+      modeGroup.toggleClass("is-open", !modeGroup.hasClass("is-open"));
+    });
+    this.registerDomEvent(this.containerEl.ownerDocument, "click", () => {
+      this.closeModeMenu();
+    });
     const effortGroup = inputToolbar.createDiv({ cls: "codebuddian-toolbar-group" });
     (0, import_obsidian2.setIcon)(effortGroup.createSpan({ cls: "codebuddian-toolbar-group-icon" }), "gauge");
     this.effortSelectEl = effortGroup.createEl("select", { cls: "codebuddian-select codebuddian-toolbar-select" });
@@ -45682,6 +45705,10 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
   }
   async onClose() {
     await this.conversationController.dispose();
+  }
+  closeModeMenu() {
+    const grp = this.modeBtnEl?.parentElement;
+    if (grp) grp.removeClass("is-open");
   }
   async handleSetMode(mode) {
     await this.conversationController.setMode(mode);
@@ -45766,9 +45793,18 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
     if (activeTab) {
       this.modelSelectEl.value = activeTab.model;
       this.effortSelectEl.value = activeTab.effort;
-      for (const [modeId, btn] of this.modeBtnEls) {
-        btn.toggleClass("is-active", modeId === activeTab.mode);
+      const activeModeCfg = MODE_CONFIG.find((m) => m.id === activeTab.mode) ?? MODE_CONFIG[0];
+      const iconEl = this.modeBtnEl.querySelector(".codebuddian-mode-dropdown-icon");
+      if (iconEl) {
+        iconEl.empty();
+        (0, import_obsidian2.setIcon)(iconEl, activeModeCfg.icon);
       }
+      this.modeBtnLabelEl.setText(activeModeCfg.label);
+      this.modeBtnEl.setAttribute("data-mode", activeModeCfg.id);
+      this.modeMenuEl.querySelectorAll(".codebuddian-mode-menu-item").forEach((el) => {
+        const isSelected = el.getAttribute("data-mode") === activeTab.mode;
+        el.toggleClass("is-active", isSelected);
+      });
       this.inputWrapperEl.removeClass("codebuddian-mode-ask", "codebuddian-mode-plan", "codebuddian-mode-craft");
       this.inputWrapperEl.addClass(`codebuddian-mode-${activeTab.mode}`);
       const isStreaming = activeTab.status === "streaming";

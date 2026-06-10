@@ -29,7 +29,9 @@ export class CodebuddianChatView extends ItemView {
   private modelSelectEl!: HTMLSelectElement;
   private effortSelectEl!: HTMLSelectElement;
   private stopBtnEl!: HTMLButtonElement;
-  private modeBtnEls = new Map<ChatMode, HTMLButtonElement>();
+  private modeBtnEl!: HTMLButtonElement;
+  private modeBtnLabelEl!: HTMLSpanElement;
+  private modeMenuEl!: HTMLDivElement;
   private inputWrapperEl!: HTMLElement;
   private runtime: ChatRuntime | null = null;
   private modelsLoaded = false;
@@ -109,20 +111,48 @@ export class CodebuddianChatView extends ItemView {
       }
     });
 
-    // Mode selector (Ask / Plan / Craft)
+    // Mode dropdown (Ask / Plan / Craft)
     const modeGroup = inputToolbar.createDiv({ cls: 'codebuddian-toolbar-group codebuddian-mode-group' });
+
+    this.modeBtnEl = modeGroup.createEl('button', {
+      cls: 'codebuddian-mode-dropdown-btn',
+      attr: { 'aria-label': 'Mode', 'aria-haspopup': 'true' },
+    });
+    const modeIconEl = this.modeBtnEl.createSpan({ cls: 'codebuddian-mode-dropdown-icon' });
+    setIcon(modeIconEl, 'message-circle');
+    this.modeBtnLabelEl = this.modeBtnEl.createSpan({ cls: 'codebuddian-mode-dropdown-label', text: 'Ask' });
+    const caretEl = this.modeBtnEl.createSpan({ cls: 'codebuddian-mode-dropdown-caret' });
+    setIcon(caretEl, 'chevron-down');
+
+    // Dropdown menu
+    this.modeMenuEl = modeGroup.createDiv({ cls: 'codebuddian-mode-menu' });
     for (const modeCfg of MODE_CONFIG) {
-      const btn = modeGroup.createEl('button', {
-        cls: 'codebuddian-mode-btn',
-        attr: { 'aria-label': modeCfg.desc, title: modeCfg.desc, 'data-mode': modeCfg.id },
+      const item = this.modeMenuEl.createEl('button', {
+        cls: 'codebuddian-mode-menu-item',
+        attr: { 'data-mode': modeCfg.id, title: modeCfg.desc },
       });
-      setIcon(btn, modeCfg.icon);
-      btn.createSpan({ text: modeCfg.label, cls: 'codebuddian-mode-label' });
-      btn.addEventListener('click', () => {
+      const itemIcon = item.createSpan({ cls: 'codebuddian-mode-menu-item-icon' });
+      setIcon(itemIcon, modeCfg.icon);
+      const textWrap = item.createDiv({ cls: 'codebuddian-mode-menu-item-text' });
+      textWrap.createDiv({ cls: 'codebuddian-mode-menu-item-label', text: modeCfg.label });
+      textWrap.createDiv({ cls: 'codebuddian-mode-menu-item-desc', text: modeCfg.desc });
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
         this.handleSetMode(modeCfg.id);
+        this.closeModeMenu();
       });
-      this.modeBtnEls.set(modeCfg.id, btn);
     }
+
+    // Toggle dropdown
+    this.modeBtnEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      modeGroup.toggleClass('is-open', !modeGroup.hasClass('is-open'));
+    });
+
+    // Close dropdown on outside click
+    this.registerDomEvent(this.containerEl.ownerDocument, 'click', () => {
+      this.closeModeMenu();
+    });
 
     // Effort selector
     const effortGroup = inputToolbar.createDiv({ cls: 'codebuddian-toolbar-group' });
@@ -198,6 +228,11 @@ export class CodebuddianChatView extends ItemView {
 
   async onClose(): Promise<void> {
     await this.conversationController.dispose();
+  }
+
+  private closeModeMenu(): void {
+    const grp = this.modeBtnEl?.parentElement;
+    if (grp) grp.removeClass('is-open');
   }
 
   private async handleSetMode(mode: ChatMode): Promise<void> {
@@ -302,10 +337,21 @@ export class CodebuddianChatView extends ItemView {
       this.modelSelectEl.value = activeTab.model;
       this.effortSelectEl.value = activeTab.effort;
 
-      // Mode buttons
-      for (const [modeId, btn] of this.modeBtnEls) {
-        btn.toggleClass('is-active', modeId === activeTab.mode);
+      // Mode dropdown — update button label/icon and active item
+      const activeModeCfg = MODE_CONFIG.find(m => m.id === activeTab.mode) ?? MODE_CONFIG[0];
+      const iconEl = this.modeBtnEl.querySelector('.codebuddian-mode-dropdown-icon') as HTMLElement | null;
+      if (iconEl) {
+        iconEl.empty();
+        setIcon(iconEl, activeModeCfg.icon);
       }
+      this.modeBtnLabelEl.setText(activeModeCfg.label);
+      this.modeBtnEl.setAttribute('data-mode', activeModeCfg.id);
+
+      // Highlight active item in menu
+      this.modeMenuEl.querySelectorAll('.codebuddian-mode-menu-item').forEach((el) => {
+        const isSelected = el.getAttribute('data-mode') === activeTab.mode;
+        el.toggleClass('is-active', isSelected);
+      });
 
       // Apply mode-specific wrapper class
       this.inputWrapperEl.removeClass('codebuddian-mode-ask', 'codebuddian-mode-plan', 'codebuddian-mode-craft');
