@@ -45118,12 +45118,94 @@ var MessageRenderer = class {
   containerEl;
   component;
   app;
+  rendered = /* @__PURE__ */ new Map();
+  hasWelcome = false;
   constructor(containerEl, component, app) {
     this.containerEl = containerEl;
     this.component = component;
     this.app = app;
   }
-  renderMessage(message) {
+  /** Build a signature for fields that, when changed, require full re-render. */
+  buildSignature(message) {
+    const toolCount = message.toolCalls?.length ?? 0;
+    const toolStatuses = message.toolCalls?.map((t) => `${t.id}:${t.status}`).join("|") ?? "";
+    return [
+      message.role,
+      message.thinkingContent ?? "",
+      toolCount,
+      toolStatuses,
+      message.isStreaming ? "S" : "F"
+    ].join("::");
+  }
+  renderMessages(messages) {
+    if (messages.length === 0) {
+      if (!this.hasWelcome) {
+        this.containerEl.empty();
+        this.rendered.clear();
+        this.renderWelcome();
+        this.hasWelcome = true;
+      }
+      return;
+    }
+    if (this.hasWelcome) {
+      this.containerEl.empty();
+      this.hasWelcome = false;
+    }
+    const seenIds = /* @__PURE__ */ new Set();
+    let prevEl = null;
+    for (const message of messages) {
+      if (message.role === "system" && (!message.content || message.content.trim().length === 0)) {
+        continue;
+      }
+      seenIds.add(message.id);
+      const existing = this.rendered.get(message.id);
+      const signature = this.buildSignature(message);
+      if (!existing || existing.signature !== signature) {
+        if (existing) {
+          existing.el.remove();
+        }
+        const newRendered = this.fullRender(message);
+        if (newRendered) {
+          if (prevEl && prevEl.nextSibling) {
+            this.containerEl.insertBefore(newRendered.el, prevEl.nextSibling);
+          } else if (!prevEl) {
+            this.containerEl.prepend(newRendered.el);
+          }
+          this.rendered.set(message.id, newRendered);
+          prevEl = newRendered.el;
+        }
+      } else {
+        if (message.content !== existing.lastContent && existing.contentEl) {
+          if (message.role === "assistant" && message.isStreaming) {
+            existing.contentEl.textContent = message.content;
+            existing.isStreamingRender = true;
+          } else if (message.role === "assistant" && !message.isStreaming) {
+            existing.contentEl.empty();
+            import_obsidian.MarkdownRenderer.render(
+              this.app,
+              message.content,
+              existing.contentEl,
+              "",
+              this.component
+            );
+            existing.isStreamingRender = false;
+          } else {
+            existing.contentEl.textContent = message.content;
+          }
+          existing.lastContent = message.content;
+        }
+        prevEl = existing.el;
+      }
+    }
+    for (const [id, rendered] of this.rendered) {
+      if (!seenIds.has(id)) {
+        rendered.el.remove();
+        this.rendered.delete(id);
+      }
+    }
+  }
+  /** Full render of a single message (build all DOM). */
+  fullRender(message) {
     if (message.role === "system" && (!message.content || message.content.trim().length === 0)) {
       return null;
     }
@@ -45142,16 +45224,23 @@ var MessageRenderer = class {
       thinkingEl.createDiv({ cls: "codebuddian-thinking-header", text: "\u{1F4AD} Thinking" });
       thinkingEl.createDiv({ cls: "codebuddian-thinking-content", text: message.thinkingContent });
     }
+    let contentEl = null;
+    let isStreamingRender = false;
     if (message.content) {
-      const contentEl = msgEl.createDiv({ cls: "codebuddian-message-content" });
+      contentEl = msgEl.createDiv({ cls: "codebuddian-message-content" });
       if (message.role === "assistant") {
-        import_obsidian.MarkdownRenderer.render(
-          this.app,
-          message.content,
-          contentEl,
-          "",
-          this.component
-        );
+        if (message.isStreaming) {
+          contentEl.textContent = message.content;
+          isStreamingRender = true;
+        } else {
+          import_obsidian.MarkdownRenderer.render(
+            this.app,
+            message.content,
+            contentEl,
+            "",
+            this.component
+          );
+        }
       } else if (message.role === "system") {
         const isMultiline = message.content.includes("\n");
         if (isMultiline) {
@@ -45176,17 +45265,13 @@ var MessageRenderer = class {
       streamEl.createSpan({ text: "\u25CF" });
       streamEl.createSpan({ text: "\u25CF" });
     }
-    return msgEl;
-  }
-  renderMessages(messages) {
-    this.containerEl.empty();
-    if (messages.length === 0) {
-      this.renderWelcome();
-      return;
-    }
-    for (const message of messages) {
-      this.renderMessage(message);
-    }
+    return {
+      el: msgEl,
+      contentEl,
+      signature: this.buildSignature(message),
+      lastContent: message.content,
+      isStreamingRender
+    };
   }
   renderWelcome() {
     const welcome = this.containerEl.createDiv({ cls: "codebuddian-welcome" });
@@ -45210,6 +45295,12 @@ var MessageRenderer = class {
     tipsEl.createDiv({ text: "\u{1F4A1} Use @ to mention files, # for instructions" });
     tipsEl.createDiv({ text: "\u2318 Press Enter to send, Shift+Enter for newline" });
     tipsEl.createDiv({ text: "\u{1F6D1} Press Esc to stop generation" });
+  }
+  /** Reset all cached state (called when switching tabs). */
+  reset() {
+    this.containerEl.empty();
+    this.rendered.clear();
+    this.hasWelcome = false;
   }
 };
 
@@ -45691,7 +45782,7 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
       this.conversationController,
       this.stateManager
     );
-    this.stateManager.subscribe(() => this.render());
+    this.stateManager.subscribe(() => this.scheduleRender());
     this.scope.register([], "Escape", (e) => {
       if (e.isComposing) return false;
       const tab = this.stateManager.getActiveTab();
@@ -45780,6 +45871,15 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
       }
     }
   }
+  renderRafId = null;
+  lastRenderedTabId = null;
+  scheduleRender() {
+    if (this.renderRafId !== null) return;
+    this.renderRafId = window.requestAnimationFrame(() => {
+      this.renderRafId = null;
+      this.render();
+    });
+  }
   render() {
     const state = this.stateManager.getState();
     this.tabBar.render(
@@ -45812,6 +45912,10 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
       this.sendButtonEl.toggleClass("is-disabled", isStreaming);
     }
     if (activeTab) {
+      if (this.lastRenderedTabId !== activeTab.id) {
+        this.messageRenderer.reset();
+        this.lastRenderedTabId = activeTab.id;
+      }
       this.messageRenderer.renderMessages(activeTab.messages);
       if (this.messagesContainer) {
         const { scrollTop, scrollHeight, clientHeight } = this.messagesContainer;
@@ -46625,7 +46729,7 @@ var SdkSessionHandle = class {
               type: "message",
               data: {
                 role: "assistant",
-                content: delta.text,
+                delta: delta.text,
                 isStreaming: true
               },
               timestamp: now

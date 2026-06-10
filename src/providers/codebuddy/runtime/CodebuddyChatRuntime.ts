@@ -504,11 +504,12 @@ class SdkSessionHandle implements SessionHandle {
         if (event.type === 'content_block_delta') {
           const delta = event.delta;
           if (delta.type === 'text_delta') {
+            // Emit as `delta` (incremental chunk to APPEND), not `content` (full replace)
             this.emit('message', {
               type: 'message',
               data: {
                 role: 'assistant',
-                content: delta.text,
+                delta: delta.text,
                 isStreaming: true,
               },
               timestamp: now,

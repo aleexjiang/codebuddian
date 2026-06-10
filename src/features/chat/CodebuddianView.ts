@@ -206,8 +206,9 @@ export class CodebuddianChatView extends ItemView {
       this.stateManager,
     );
 
-    // Subscribe to state changes
-    this.stateManager.subscribe(() => this.render());
+    // Subscribe to state changes — debounce via rAF to prevent flicker
+    // when streaming tokens fire dozens of updates per second.
+    this.stateManager.subscribe(() => this.scheduleRender());
 
     // Keyboard shortcuts
     this.scope.register([], 'Escape', (e: KeyboardEvent) => {
@@ -319,6 +320,17 @@ export class CodebuddianChatView extends ItemView {
     }
   }
 
+  private renderRafId: number | null = null;
+  private lastRenderedTabId: string | null = null;
+
+  private scheduleRender(): void {
+    if (this.renderRafId !== null) return;
+    this.renderRafId = window.requestAnimationFrame(() => {
+      this.renderRafId = null;
+      this.render();
+    });
+  }
+
   private render(): void {
     const state = this.stateManager.getState();
 
@@ -367,6 +379,11 @@ export class CodebuddianChatView extends ItemView {
 
     // Render messages for active tab
     if (activeTab) {
+      // Reset renderer cache when switching tabs (each tab has its own message DOM)
+      if (this.lastRenderedTabId !== activeTab.id) {
+        this.messageRenderer.reset();
+        this.lastRenderedTabId = activeTab.id;
+      }
       this.messageRenderer.renderMessages(activeTab.messages);
 
       // Auto-scroll

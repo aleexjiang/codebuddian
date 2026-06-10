@@ -2,10 +2,23 @@ import { MarkdownRenderer, Component, App } from 'obsidian';
 import type { ChatMessage } from '../../../core/types';
 import { ToolCallRenderer } from './ToolCallRenderer';
 
+interface RenderedMessage {
+  el: HTMLElement;
+  contentEl: HTMLElement | null;
+  // Hash of "stable" fields to detect when full re-render is needed
+  signature: string;
+  // Last rendered content (for streaming text fast-path)
+  lastContent: string;
+  // Whether currently rendered as streaming (raw text) vs final (markdown)
+  isStreamingRender: boolean;
+}
+
 export class MessageRenderer {
   private containerEl: HTMLElement;
   private component: Component;
   private app: App;
+  private rendered = new Map<string, RenderedMessage>();
+  private hasWelcome = false;
 
   constructor(containerEl: HTMLElement, component: Component, app: App) {
     this.containerEl = containerEl;
@@ -13,8 +26,106 @@ export class MessageRenderer {
     this.app = app;
   }
 
-  renderMessage(message: ChatMessage): HTMLElement | null {
-    // Skip empty system messages (e.g. SDK init messages with no content)
+  /** Build a signature for fields that, when changed, require full re-render. */
+  private buildSignature(message: ChatMessage): string {
+    const toolCount = message.toolCalls?.length ?? 0;
+    const toolStatuses = message.toolCalls?.map(t => `${t.id}:${t.status}`).join('|') ?? '';
+    return [
+      message.role,
+      message.thinkingContent ?? '',
+      toolCount,
+      toolStatuses,
+      message.isStreaming ? 'S' : 'F',
+    ].join('::');
+  }
+
+  renderMessages(messages: ChatMessage[]): void {
+    // Empty state
+    if (messages.length === 0) {
+      if (!this.hasWelcome) {
+        this.containerEl.empty();
+        this.rendered.clear();
+        this.renderWelcome();
+        this.hasWelcome = true;
+      }
+      return;
+    }
+
+    // Clear welcome state if leaving empty
+    if (this.hasWelcome) {
+      this.containerEl.empty();
+      this.hasWelcome = false;
+    }
+
+    // Diff-based render: keep elements where possible, only update what changed
+    const seenIds = new Set<string>();
+    let prevEl: HTMLElement | null = null;
+
+    for (const message of messages) {
+      // Skip empty system messages
+      if (message.role === 'system' && (!message.content || message.content.trim().length === 0)) {
+        continue;
+      }
+
+      seenIds.add(message.id);
+      const existing = this.rendered.get(message.id);
+      const signature = this.buildSignature(message);
+
+      if (!existing || existing.signature !== signature) {
+        // Need full re-render of this message
+        if (existing) {
+          existing.el.remove();
+        }
+        const newRendered = this.fullRender(message);
+        if (newRendered) {
+          // Insert in correct DOM position (after prevEl, or at start)
+          if (prevEl && prevEl.nextSibling) {
+            this.containerEl.insertBefore(newRendered.el, prevEl.nextSibling);
+          } else if (!prevEl) {
+            this.containerEl.prepend(newRendered.el);
+          }
+          // else: appended by createDiv default
+          this.rendered.set(message.id, newRendered);
+          prevEl = newRendered.el;
+        }
+      } else {
+        // Signature matches — fast path: only update content if it changed
+        if (message.content !== existing.lastContent && existing.contentEl) {
+          if (message.role === 'assistant' && message.isStreaming) {
+            // Streaming: just update text, no markdown render (avoid flicker)
+            existing.contentEl.textContent = message.content;
+            existing.isStreamingRender = true;
+          } else if (message.role === 'assistant' && !message.isStreaming) {
+            // Stream finished: re-render with markdown
+            existing.contentEl.empty();
+            MarkdownRenderer.render(
+              this.app,
+              message.content,
+              existing.contentEl,
+              '',
+              this.component,
+            );
+            existing.isStreamingRender = false;
+          } else {
+            existing.contentEl.textContent = message.content;
+          }
+          existing.lastContent = message.content;
+        }
+        prevEl = existing.el;
+      }
+    }
+
+    // Remove stale messages no longer in the list
+    for (const [id, rendered] of this.rendered) {
+      if (!seenIds.has(id)) {
+        rendered.el.remove();
+        this.rendered.delete(id);
+      }
+    }
+  }
+
+  /** Full render of a single message (build all DOM). */
+  private fullRender(message: ChatMessage): RenderedMessage | null {
     if (message.role === 'system' && (!message.content || message.content.trim().length === 0)) {
       return null;
     }
@@ -23,7 +134,7 @@ export class MessageRenderer {
       cls: `codebuddian-message codebuddian-message-${message.role}`,
     });
 
-    // Header (skip for minimal system messages)
+    // Header
     const headerEl = msgEl.createDiv({ cls: 'codebuddian-message-header' });
     const roleLabel = message.role === 'user' ? '👤 You'
       : message.role === 'assistant' ? '🤖 CodeBuddy'
@@ -42,20 +153,25 @@ export class MessageRenderer {
     }
 
     // Main content
+    let contentEl: HTMLElement | null = null;
+    let isStreamingRender = false;
     if (message.content) {
-      const contentEl = msgEl.createDiv({ cls: 'codebuddian-message-content' });
-      // Use Obsidian's markdown renderer for assistant messages
+      contentEl = msgEl.createDiv({ cls: 'codebuddian-message-content' });
       if (message.role === 'assistant') {
-        MarkdownRenderer.render(
-          this.app,
-          message.content,
-          contentEl,
-          '',
-          this.component,
-        );
+        if (message.isStreaming) {
+          // Streaming: plain text (markdown comes at finalization)
+          contentEl.textContent = message.content;
+          isStreamingRender = true;
+        } else {
+          MarkdownRenderer.render(
+            this.app,
+            message.content,
+            contentEl,
+            '',
+            this.component,
+          );
+        }
       } else if (message.role === 'system') {
-        // System messages: preserve newlines, render as preformatted text for
-        // multi-line diagnostics (e.g. connection failure with stderr dump)
         const isMultiline = message.content.includes('\n');
         if (isMultiline) {
           const pre = contentEl.createEl('pre', { cls: 'codebuddian-message-system-pre' });
@@ -76,7 +192,7 @@ export class MessageRenderer {
       }
     }
 
-    // Streaming indicator
+    // Streaming indicator (separate element so we can leave content alone)
     if (message.isStreaming) {
       const streamEl = msgEl.createDiv({ cls: 'codebuddian-streaming-indicator' });
       streamEl.createSpan({ text: '●' });
@@ -84,27 +200,18 @@ export class MessageRenderer {
       streamEl.createSpan({ text: '●' });
     }
 
-    return msgEl;
-  }
-
-  renderMessages(messages: ChatMessage[]): void {
-    this.containerEl.empty();
-
-    // Empty state: show welcome when no messages
-    if (messages.length === 0) {
-      this.renderWelcome();
-      return;
-    }
-
-    for (const message of messages) {
-      this.renderMessage(message);
-    }
+    return {
+      el: msgEl,
+      contentEl,
+      signature: this.buildSignature(message),
+      lastContent: message.content,
+      isStreamingRender,
+    };
   }
 
   private renderWelcome(): void {
     const welcome = this.containerEl.createDiv({ cls: 'codebuddian-welcome' });
 
-    // Logo
     const logoWrap = welcome.createDiv({ cls: 'codebuddian-welcome-logo' });
     const ns = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(ns, 'svg');
@@ -118,16 +225,21 @@ export class MessageRenderer {
     svg.appendChild(path);
     logoWrap.appendChild(svg);
 
-    // Greeting
     welcome.createDiv({
       cls: 'codebuddian-welcome-greeting',
       text: 'How can I help you today?',
     });
 
-    // Tips
     const tipsEl = welcome.createDiv({ cls: 'codebuddian-welcome-tips' });
     tipsEl.createDiv({ text: '💡 Use @ to mention files, # for instructions' });
     tipsEl.createDiv({ text: '⌘ Press Enter to send, Shift+Enter for newline' });
     tipsEl.createDiv({ text: '🛑 Press Esc to stop generation' });
+  }
+
+  /** Reset all cached state (called when switching tabs). */
+  reset(): void {
+    this.containerEl.empty();
+    this.rendered.clear();
+    this.hasWelcome = false;
   }
 }
