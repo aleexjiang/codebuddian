@@ -116,4 +116,12 @@ export class StreamController {
   startNewTurn(): void {
     this.currentAssistantContent = '';
   }
+
+  /** Finalize the current streaming message on cancel/interrupt. */
+  finalizeOnCancel(tabId: string): void {
+    if (this.currentAssistantContent) {
+      this.stateManager.finalizeLastAssistantMessage(tabId);
+      this.currentAssistantContent = '';
+    }
+  }
 }

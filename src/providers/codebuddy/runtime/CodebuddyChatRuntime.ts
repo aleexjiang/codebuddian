@@ -139,6 +139,10 @@ export class CodebuddyChatRuntime implements ChatRuntime {
     this.currentSdkSession = null;
   }
 
+  getSdkSession(): Session | null {
+    return this.currentSdkSession;
+  }
+
   // -------------------------------------------------------------------------
   // Build SDK SessionOptions from our settings + start opts
   // -------------------------------------------------------------------------

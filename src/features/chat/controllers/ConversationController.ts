@@ -78,16 +78,54 @@ export class ConversationController {
   }
 
   async cancel(): Promise<void> {
-    await this.sessionHandle?.cancel();
-  }
-
-  async togglePlanMode(): Promise<void> {
     const tab = this.stateManager.getActiveTab();
     if (!tab) return;
+
+    try {
+      await this.sessionHandle?.cancel();
+    } catch (e) {
+      // Ignore interrupt errors
+    }
+
+    // Finalize any streaming assistant message
+    this.streamController.finalizeOnCancel(tab.id);
+
+    // Add interrupted system message
+    const interruptedMsg: ChatMessage = {
+      id: `msg-${Date.now()}`,
+      role: 'system',
+      content: '⏹ Interrupted · What should CodeBuddy do instead?',
+      timestamp: Date.now(),
+    };
+    this.stateManager.addMessage(tab.id, interruptedMsg);
+    this.stateManager.updateTab(tab.id, { status: 'idle' });
+  }
+
+  async togglePlanMode(): Promise<boolean> {
+    const tab = this.stateManager.getActiveTab();
+    if (!tab) return false;
+
+    const newPlanMode = !tab.isPlanMode;
+    const newPermissionMode: PermissionMode = newPlanMode ? 'plan' : 'default';
+
     this.stateManager.updateTab(tab.id, {
-      isPlanMode: !tab.isPlanMode,
-      permissionMode: tab.isPlanMode ? 'default' : 'plan',
+      isPlanMode: newPlanMode,
+      permissionMode: newPermissionMode,
     });
+
+    // If we have an active SDK session, update its permission mode
+    if (this.sessionHandle && this.runtime) {
+      try {
+        const sdkSession = this.runtime.getSdkSession();
+        if (sdkSession) {
+          await sdkSession.setPermissionMode(newPermissionMode as 'default' | 'plan' | 'acceptEdits' | 'bypassPermissions');
+        }
+      } catch (e) {
+        // Session might not be connected yet — settings will apply on next start
+      }
+    }
+
+    return newPlanMode;
   }
 
   private setupEventListeners(tabId: string): void {

@@ -22,6 +22,9 @@ export class CodebuddianChatView extends ItemView {
   private modelSelectEl!: HTMLSelectElement;
   private effortSelectEl!: HTMLSelectElement;
   private headerEl!: HTMLElement;
+  private inputWrapperEl!: HTMLElement;
+  private planModeBtnEl!: HTMLButtonElement;
+  private stopBtnEl!: HTMLButtonElement;
   private runtime: ChatRuntime | null = null;
   private modelsLoaded = false;
 
@@ -79,6 +82,7 @@ export class CodebuddianChatView extends ItemView {
       const tab = this.stateManager.getActiveTab();
       if (tab) {
         this.stateManager.updateTab(tab.id, { model: this.modelSelectEl.value });
+        this.applyModelToSession(this.modelSelectEl.value);
       }
     });
 
@@ -94,6 +98,7 @@ export class CodebuddianChatView extends ItemView {
       const tab = this.stateManager.getActiveTab();
       if (tab) {
         this.stateManager.updateTab(tab.id, { effort: this.effortSelectEl.value });
+        this.applyEffortToSession(this.effortSelectEl.value);
       }
     });
 
@@ -118,31 +123,36 @@ export class CodebuddianChatView extends ItemView {
     const inputContainer = container.createDiv({ cls: 'codebuddian-input-container' });
 
     // Input wrapper (bordered box like claudian)
-    const inputWrapper = inputContainer.createDiv({ cls: 'codebuddian-input-wrapper' });
+    this.inputWrapperEl = inputContainer.createDiv({ cls: 'codebuddian-input-wrapper' });
 
     // Toolbar inside input wrapper (top)
-    const toolbar = inputWrapper.createDiv({ cls: 'codebuddian-input-toolbar' });
+    const toolbar = this.inputWrapperEl.createDiv({ cls: 'codebuddian-input-toolbar' });
 
-    const planModeBtn = toolbar.createEl('button', {
-      cls: 'codebuddian-toolbar-btn',
-      attr: { 'aria-label': 'Toggle plan mode' },
+    // Plan mode button
+    this.planModeBtnEl = toolbar.createEl('button', {
+      cls: 'codebuddian-toolbar-btn codebuddian-plan-btn',
+      attr: { 'aria-label': 'Toggle plan mode (Shift+Tab)' },
     });
-    setIcon(planModeBtn, 'list-checks');
-    planModeBtn.addEventListener('click', () => {
-      this.conversationController.togglePlanMode();
+    setIcon(this.planModeBtnEl, 'list-checks');
+    this.planModeBtnEl.addEventListener('click', () => {
+      this.handleTogglePlanMode();
     });
 
-    const stopBtn = toolbar.createEl('button', {
-      cls: 'codebuddian-toolbar-btn',
-      attr: { 'aria-label': 'Stop generation' },
+    // Plan mode label (shown when active)
+    const planLabel = toolbar.createSpan({ cls: 'codebuddian-plan-label', text: 'PLAN' });
+
+    // Stop button (shown only during streaming)
+    this.stopBtnEl = toolbar.createEl('button', {
+      cls: 'codebuddian-toolbar-btn codebuddian-stop-btn',
+      attr: { 'aria-label': 'Stop generation (Esc)' },
     });
-    setIcon(stopBtn, 'square');
-    stopBtn.addEventListener('click', () => {
+    setIcon(this.stopBtnEl, 'square');
+    this.stopBtnEl.addEventListener('click', () => {
       this.conversationController.cancel();
     });
 
     // Textarea
-    this.textareaEl = inputWrapper.createEl('textarea', {
+    this.textareaEl = this.inputWrapperEl.createEl('textarea', {
       cls: 'codebuddian-input',
       attr: {
         placeholder: 'Message CodeBuddy… (Enter to send, Shift+Enter for newline)',
@@ -151,7 +161,7 @@ export class CodebuddianChatView extends ItemView {
     });
 
     // Send button (circular, bottom-right)
-    this.sendButtonEl = inputWrapper.createEl('button', {
+    this.sendButtonEl = this.inputWrapperEl.createEl('button', {
       cls: 'codebuddian-send-btn',
       attr: { 'aria-label': 'Send message' },
     });
@@ -169,6 +179,25 @@ export class CodebuddianChatView extends ItemView {
     // Subscribe to state changes
     this.stateManager.subscribe(() => this.render());
 
+    // ===== Keyboard shortcuts =====
+    // Shift+Tab → toggle plan mode
+    this.registerDomEvent(this.containerEl, 'keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Tab' && e.shiftKey && !e.isComposing) {
+        e.preventDefault();
+        this.handleTogglePlanMode();
+      }
+    });
+
+    // Escape → stop generation
+    this.scope.register([], 'Escape', (e: KeyboardEvent) => {
+      if (e.isComposing) return false;
+      const tab = this.stateManager.getActiveTab();
+      if (tab && tab.status === 'streaming') {
+        this.conversationController.cancel();
+      }
+      return false;
+    });
+
     // Ensure at least one tab
     this.tabManager.ensureAtLeastOneTab();
 
@@ -178,6 +207,38 @@ export class CodebuddianChatView extends ItemView {
 
   async onClose(): Promise<void> {
     await this.conversationController.dispose();
+  }
+
+  private async handleTogglePlanMode(): Promise<void> {
+    const isPlan = await this.conversationController.togglePlanMode();
+    // Visual feedback handled by render()
+    new Notice(isPlan ? 'Plan mode enabled' : 'Plan mode disabled', 1500);
+  }
+
+  /** Apply model change to the live SDK session. */
+  private async applyModelToSession(model: string): Promise<void> {
+    if (!this.runtime || !model) return;
+    try {
+      const sdkSession = this.runtime.getSdkSession() as { setModel?(m: string): Promise<void> } | null;
+      if (sdkSession?.setModel) {
+        await sdkSession.setModel(model);
+      }
+    } catch {
+      // Session may not be connected — setting will apply on next start
+    }
+  }
+
+  /** Apply effort change via SDK session's setConfig. */
+  private async applyEffortToSession(effort: string): Promise<void> {
+    if (!this.runtime || !effort) return;
+    try {
+      const sdkSession = this.runtime.getSdkSession() as { setConfig?(c: Record<string, unknown>): Promise<void> } | null;
+      if (sdkSession?.setConfig) {
+        await sdkSession.setConfig({ effort });
+      }
+    } catch {
+      // Session may not be connected
+    }
   }
 
   private createLogoSvg(): SVGSVGElement {
@@ -252,6 +313,24 @@ export class CodebuddianChatView extends ItemView {
     if (activeTab) {
       this.modelSelectEl.value = activeTab.model;
       this.effortSelectEl.value = activeTab.effort;
+
+      // ---- Plan mode visual feedback ----
+      const isPlan = activeTab.isPlanMode;
+      this.planModeBtnEl.toggleClass('is-active', isPlan);
+      this.inputWrapperEl.toggleClass('codebuddian-plan-mode', isPlan);
+
+      // Show/hide PLAN label
+      const planLabel = this.inputWrapperEl.querySelector('.codebuddian-plan-label');
+      if (planLabel) {
+        (planLabel as HTMLElement).style.display = isPlan ? '' : 'none';
+      }
+
+      // ---- Stop button visibility ----
+      const isStreaming = activeTab.status === 'streaming';
+      this.stopBtnEl.toggleClass('is-visible', isStreaming);
+
+      // ---- Send button state ----
+      this.sendButtonEl.toggleClass('is-disabled', isStreaming);
     }
 
     // Render messages for active tab

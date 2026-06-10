@@ -45281,6 +45281,13 @@ var StreamController = class {
   startNewTurn() {
     this.currentAssistantContent = "";
   }
+  /** Finalize the current streaming message on cancel/interrupt. */
+  finalizeOnCancel(tabId) {
+    if (this.currentAssistantContent) {
+      this.stateManager.finalizeLastAssistantMessage(tabId);
+      this.currentAssistantContent = "";
+    }
+  }
 };
 
 // src/features/chat/controllers/ConversationController.ts
@@ -45347,15 +45354,41 @@ var ConversationController = class {
     }
   }
   async cancel() {
-    await this.sessionHandle?.cancel();
+    const tab = this.stateManager.getActiveTab();
+    if (!tab) return;
+    try {
+      await this.sessionHandle?.cancel();
+    } catch (e) {
+    }
+    this.streamController.finalizeOnCancel(tab.id);
+    const interruptedMsg = {
+      id: `msg-${Date.now()}`,
+      role: "system",
+      content: "\u23F9 Interrupted \xB7 What should CodeBuddy do instead?",
+      timestamp: Date.now()
+    };
+    this.stateManager.addMessage(tab.id, interruptedMsg);
+    this.stateManager.updateTab(tab.id, { status: "idle" });
   }
   async togglePlanMode() {
     const tab = this.stateManager.getActiveTab();
-    if (!tab) return;
+    if (!tab) return false;
+    const newPlanMode = !tab.isPlanMode;
+    const newPermissionMode = newPlanMode ? "plan" : "default";
     this.stateManager.updateTab(tab.id, {
-      isPlanMode: !tab.isPlanMode,
-      permissionMode: tab.isPlanMode ? "default" : "plan"
+      isPlanMode: newPlanMode,
+      permissionMode: newPermissionMode
     });
+    if (this.sessionHandle && this.runtime) {
+      try {
+        const sdkSession = this.runtime.getSdkSession();
+        if (sdkSession) {
+          await sdkSession.setPermissionMode(newPermissionMode);
+        }
+      } catch (e) {
+      }
+    }
+    return newPlanMode;
   }
   setupEventListeners(tabId) {
     if (!this.sessionHandle) return;
@@ -45522,6 +45555,9 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
   modelSelectEl;
   effortSelectEl;
   headerEl;
+  inputWrapperEl;
+  planModeBtnEl;
+  stopBtnEl;
   runtime = null;
   modelsLoaded = false;
   constructor(leaf) {
@@ -45561,6 +45597,7 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
       const tab = this.stateManager.getActiveTab();
       if (tab) {
         this.stateManager.updateTab(tab.id, { model: this.modelSelectEl.value });
+        this.applyModelToSession(this.modelSelectEl.value);
       }
     });
     const effortWrap = actionsEl.createDiv({ cls: "codebuddian-control-group" });
@@ -45574,6 +45611,7 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
       const tab = this.stateManager.getActiveTab();
       if (tab) {
         this.stateManager.updateTab(tab.id, { effort: this.effortSelectEl.value });
+        this.applyEffortToSession(this.effortSelectEl.value);
       }
     });
     const newTabBtn = actionsEl.createDiv({ cls: "codebuddian-header-btn", attr: { "aria-label": "New tab" } });
@@ -45588,32 +45626,33 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
     const messagesWrapper = container.createDiv({ cls: "codebuddian-messages-wrapper" });
     this.messagesContainer = messagesWrapper.createDiv({ cls: "codebuddian-messages" });
     const inputContainer = container.createDiv({ cls: "codebuddian-input-container" });
-    const inputWrapper = inputContainer.createDiv({ cls: "codebuddian-input-wrapper" });
-    const toolbar = inputWrapper.createDiv({ cls: "codebuddian-input-toolbar" });
-    const planModeBtn = toolbar.createEl("button", {
-      cls: "codebuddian-toolbar-btn",
-      attr: { "aria-label": "Toggle plan mode" }
+    this.inputWrapperEl = inputContainer.createDiv({ cls: "codebuddian-input-wrapper" });
+    const toolbar = this.inputWrapperEl.createDiv({ cls: "codebuddian-input-toolbar" });
+    this.planModeBtnEl = toolbar.createEl("button", {
+      cls: "codebuddian-toolbar-btn codebuddian-plan-btn",
+      attr: { "aria-label": "Toggle plan mode (Shift+Tab)" }
     });
-    (0, import_obsidian2.setIcon)(planModeBtn, "list-checks");
-    planModeBtn.addEventListener("click", () => {
-      this.conversationController.togglePlanMode();
+    (0, import_obsidian2.setIcon)(this.planModeBtnEl, "list-checks");
+    this.planModeBtnEl.addEventListener("click", () => {
+      this.handleTogglePlanMode();
     });
-    const stopBtn = toolbar.createEl("button", {
-      cls: "codebuddian-toolbar-btn",
-      attr: { "aria-label": "Stop generation" }
+    const planLabel = toolbar.createSpan({ cls: "codebuddian-plan-label", text: "PLAN" });
+    this.stopBtnEl = toolbar.createEl("button", {
+      cls: "codebuddian-toolbar-btn codebuddian-stop-btn",
+      attr: { "aria-label": "Stop generation (Esc)" }
     });
-    (0, import_obsidian2.setIcon)(stopBtn, "square");
-    stopBtn.addEventListener("click", () => {
+    (0, import_obsidian2.setIcon)(this.stopBtnEl, "square");
+    this.stopBtnEl.addEventListener("click", () => {
       this.conversationController.cancel();
     });
-    this.textareaEl = inputWrapper.createEl("textarea", {
+    this.textareaEl = this.inputWrapperEl.createEl("textarea", {
       cls: "codebuddian-input",
       attr: {
         placeholder: "Message CodeBuddy\u2026 (Enter to send, Shift+Enter for newline)",
         rows: "1"
       }
     });
-    this.sendButtonEl = inputWrapper.createEl("button", {
+    this.sendButtonEl = this.inputWrapperEl.createEl("button", {
       cls: "codebuddian-send-btn",
       attr: { "aria-label": "Send message" }
     });
@@ -45626,11 +45665,51 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
       this.stateManager
     );
     this.stateManager.subscribe(() => this.render());
+    this.registerDomEvent(this.containerEl, "keydown", (e) => {
+      if (e.key === "Tab" && e.shiftKey && !e.isComposing) {
+        e.preventDefault();
+        this.handleTogglePlanMode();
+      }
+    });
+    this.scope.register([], "Escape", (e) => {
+      if (e.isComposing) return false;
+      const tab = this.stateManager.getActiveTab();
+      if (tab && tab.status === "streaming") {
+        this.conversationController.cancel();
+      }
+      return false;
+    });
     this.tabManager.ensureAtLeastOneTab();
     this.tryLoadModels();
   }
   async onClose() {
     await this.conversationController.dispose();
+  }
+  async handleTogglePlanMode() {
+    const isPlan = await this.conversationController.togglePlanMode();
+    new import_obsidian2.Notice(isPlan ? "Plan mode enabled" : "Plan mode disabled", 1500);
+  }
+  /** Apply model change to the live SDK session. */
+  async applyModelToSession(model) {
+    if (!this.runtime || !model) return;
+    try {
+      const sdkSession = this.runtime.getSdkSession();
+      if (sdkSession?.setModel) {
+        await sdkSession.setModel(model);
+      }
+    } catch {
+    }
+  }
+  /** Apply effort change via SDK session's setConfig. */
+  async applyEffortToSession(effort) {
+    if (!this.runtime || !effort) return;
+    try {
+      const sdkSession = this.runtime.getSdkSession();
+      if (sdkSession?.setConfig) {
+        await sdkSession.setConfig({ effort });
+      }
+    } catch {
+    }
   }
   createLogoSvg() {
     const ns = "http://www.w3.org/2000/svg";
@@ -45688,6 +45767,16 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
     if (activeTab) {
       this.modelSelectEl.value = activeTab.model;
       this.effortSelectEl.value = activeTab.effort;
+      const isPlan = activeTab.isPlanMode;
+      this.planModeBtnEl.toggleClass("is-active", isPlan);
+      this.inputWrapperEl.toggleClass("codebuddian-plan-mode", isPlan);
+      const planLabel = this.inputWrapperEl.querySelector(".codebuddian-plan-label");
+      if (planLabel) {
+        planLabel.style.display = isPlan ? "" : "none";
+      }
+      const isStreaming = activeTab.status === "streaming";
+      this.stopBtnEl.toggleClass("is-visible", isStreaming);
+      this.sendButtonEl.toggleClass("is-disabled", isStreaming);
     }
     if (activeTab) {
       this.messageRenderer.renderMessages(activeTab.messages);
@@ -46074,6 +46163,9 @@ var CodebuddyChatRuntime = class {
       this.currentSessionHandle = null;
     }
     this.currentSdkSession = null;
+  }
+  getSdkSession() {
+    return this.currentSdkSession;
   }
   // -------------------------------------------------------------------------
   // Build SDK SessionOptions from our settings + start opts
