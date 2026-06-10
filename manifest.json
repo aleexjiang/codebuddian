@@ -1,0 +1,10 @@
+{
+	"id": "codebuddian",
+	"name": "Codebuddian",
+	"version": "0.1.0",
+	"minAppVersion": "1.7.2",
+	"description": "CodeBuddy CLI in your Obsidian vault – chat, inline edit, slash commands, MCP and more.",
+	"author": "aleex",
+	"authorUrl": "",
+	"isDesktopOnly": true
+}
