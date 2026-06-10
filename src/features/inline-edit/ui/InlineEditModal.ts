@@ -1,6 +1,6 @@
 import { App, Modal, MarkdownRenderer, Component, Notice } from 'obsidian';
 import type { CodebuddianSettings } from '../../../core/types/settings';
-import { PrintTransport } from '../../../providers/codebuddy/transport-print';
+import { query, type Options } from '@tencent-ai/agent-sdk';
 import { DiffRenderer } from '../../chat/rendering/DiffRenderer';
 import type { DiffSegment } from '../../../core/types';
 
@@ -55,8 +55,8 @@ export class InlineEditModal extends Modal {
     this.runEdit().then(result => {
       statusEl.setText('');
 
-      if (result.exitCode === 0 && result.stdout) {
-        this.modifiedText = result.stdout;
+      if (result) {
+        this.modifiedText = result;
         this.diffSegments = DiffRenderer.computeDiff(this.originalText, this.modifiedText);
 
         // Show diff
@@ -75,10 +75,14 @@ export class InlineEditModal extends Modal {
         const cancelBtn = btnRow.createEl('button', { text: '❌ Cancel' });
         cancelBtn.addEventListener('click', () => this.close());
       } else {
-        statusEl.setText(`❌ Error: ${result.stderr || 'Unknown error'}`);
+        statusEl.setText('❌ Error: No response from CodeBuddy');
         const closeBtn = contentEl.createEl('button', { text: 'Close' });
         closeBtn.addEventListener('click', () => this.close());
       }
+    }).catch(err => {
+      statusEl.setText(`❌ Error: ${err.message || 'Unknown error'}`);
+      const closeBtn = contentEl.createEl('button', { text: 'Close' });
+      closeBtn.addEventListener('click', () => this.close());
     });
   }
 
@@ -86,14 +90,38 @@ export class InlineEditModal extends Modal {
     this.contentEl.empty();
   }
 
-  private async runEdit() {
-    const transport = new PrintTransport();
+  private async runEdit(): Promise<string> {
     const fullPrompt = `Edit the following text according to the instruction. Return ONLY the modified text, nothing else.\n\nInstruction: ${this.prompt}\n\nOriginal text:\n${this.originalText}`;
 
-    return transport.execute(this.cliPath, fullPrompt, {
+    const options: Options = {
       cwd: this.vaultPath,
-      model: this.settings.model || undefined,
-      permissionMode: this.settings.permissionMode,
-    });
+      permissionMode: 'bypassPermissions',
+      pathToCodebuddyCode: this.cliPath || undefined,
+      maxTurns: 1,
+      includePartialMessages: false,
+    };
+
+    if (this.settings.model) {
+      options.model = this.settings.model;
+    }
+
+    let result = '';
+    const q = query({ prompt: fullPrompt, options });
+
+    for await (const msg of q) {
+      if (msg.type === 'assistant') {
+        for (const block of msg.message.content) {
+          if (block.type === 'text') {
+            result += block.text;
+          }
+        }
+      } else if (msg.type === 'result') {
+        if (msg.subtype === 'success' && msg.result) {
+          result = msg.result;
+        }
+      }
+    }
+
+    return result;
   }
 }

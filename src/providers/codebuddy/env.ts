@@ -1,4 +1,7 @@
-import type { CodebuddyLaunchOptions } from './types';
+/**
+ * Environment utilities for CodeBuddy SDK.
+ * Builds environment variables for the SDK CLI subprocess.
+ */
 
 const ENV_PASSTHROUGH = [
   'PATH',
@@ -20,8 +23,8 @@ const ENV_PASSTHROUGH = [
   'TMP',
 ];
 
-export function buildChildEnv(opts: CodebuddyLaunchOptions): NodeJS.ProcessEnv {
-  const env: Record<string, string> = {};
+export function buildChildEnv(): Record<string, string | undefined> {
+  const env: Record<string, string | undefined> = {};
 
   // Pass through essential env vars
   for (const key of ENV_PASSTHROUGH) {
@@ -38,5 +41,31 @@ export function buildChildEnv(opts: CodebuddyLaunchOptions): NodeJS.ProcessEnv {
     }
   }
 
-  return env as NodeJS.ProcessEnv;
+  return env;
+}
+
+/**
+ * Get enhanced PATH including common Node.js locations.
+ */
+export function getEnhancedPath(): string {
+  const pathEnv = process.env.PATH || '';
+  const home = process.env.HOME || process.env.USERPROFILE || '';
+  const extraPaths: string[] = [];
+
+  // Common nvm paths
+  if (home) {
+    // Try to find nvm node versions
+    extraPaths.push(`${home}/.nvm/versions/node/v25.8.1/bin`);
+    extraPaths.push(`${home}/.nvm/versions/node/v22.22.2/bin`);
+    extraPaths.push(`${home}/.nvm/versions/node/v20.19.0/bin`);
+  }
+
+  // Common global paths
+  extraPaths.push('/usr/local/bin');
+
+  // Merge, removing duplicates
+  const existingPaths = new Set(pathEnv.split(':'));
+  const newPaths = extraPaths.filter(p => !existingPaths.has(p));
+
+  return [...newPaths, pathEnv].join(':');
 }

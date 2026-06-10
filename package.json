@@ -29,5 +29,8 @@
 		"obsidian": "latest",
 		"tslib": "^2.8.0",
 		"typescript": "^5.7.0"
+	},
+	"dependencies": {
+		"@tencent-ai/agent-sdk": "^0.3.171"
 	}
 }

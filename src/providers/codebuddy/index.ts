@@ -3,7 +3,7 @@ import type { ProviderDescriptor, ProviderCapabilities } from '../../core/types'
 export const CODEBUDDY_PROVIDER: ProviderDescriptor = {
   id: 'codebuddy',
   displayName: 'CodeBuddy',
-  description: 'CodeBuddy CLI – AI coding agent with ACP protocol',
+  description: 'CodeBuddy CLI – AI coding agent via Agent SDK',
   icon: '🤖',
   capabilities: {
     chat: true,
