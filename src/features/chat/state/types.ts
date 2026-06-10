@@ -1,12 +1,14 @@
 import type { ChatMessage, PermissionMode } from '../../../core/types';
 
+export type ChatMode = 'ask' | 'plan' | 'craft';
+
 export interface ChatTab {
   id: string;
   title: string;
   messages: ChatMessage[];
   status: 'idle' | 'streaming' | 'waiting_approval' | 'error';
   permissionMode: PermissionMode;
-  isPlanMode: boolean;
+  mode: ChatMode;
   sessionId: string | null;
   model: string;
   effort: string;
@@ -28,7 +30,7 @@ export function createEmptyTab(id: string): ChatTab {
     messages: [],
     status: 'idle',
     permissionMode: 'default',
-    isPlanMode: false,
+    mode: 'ask',
     sessionId: null,
     model: '',
     effort: 'medium',

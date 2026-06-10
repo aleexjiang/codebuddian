@@ -2,7 +2,14 @@ import type { ChatStateManager } from '../state/ChatState';
 import type { ChatRuntime } from '../../../core/runtime/ChatRuntime';
 import type { SessionHandle } from '../../../core/runtime/types';
 import type { UserInput, ChatMessage, PermissionMode } from '../../../core/types';
+import type { ChatMode } from '../state/types';
 import { StreamController } from './StreamController';
+
+const MODE_TO_PERMISSION: Record<ChatMode, PermissionMode> = {
+  ask: 'default',
+  plan: 'plan',
+  craft: 'acceptEdits',
+};
 
 export class ConversationController {
   private sessionHandle: SessionHandle | null = null;
@@ -101,16 +108,15 @@ export class ConversationController {
     this.stateManager.updateTab(tab.id, { status: 'idle' });
   }
 
-  async togglePlanMode(): Promise<boolean> {
+  async setMode(mode: ChatMode): Promise<void> {
     const tab = this.stateManager.getActiveTab();
-    if (!tab) return false;
+    if (!tab) return;
 
-    const newPlanMode = !tab.isPlanMode;
-    const newPermissionMode: PermissionMode = newPlanMode ? 'plan' : 'default';
+    const permissionMode = MODE_TO_PERMISSION[mode];
 
     this.stateManager.updateTab(tab.id, {
-      isPlanMode: newPlanMode,
-      permissionMode: newPermissionMode,
+      mode,
+      permissionMode,
     });
 
     // If we have an active SDK session, update its permission mode
@@ -118,14 +124,12 @@ export class ConversationController {
       try {
         const sdkSession = this.runtime.getSdkSession();
         if (sdkSession) {
-          await sdkSession.setPermissionMode(newPermissionMode as 'default' | 'plan' | 'acceptEdits' | 'bypassPermissions');
+          await (sdkSession as { setPermissionMode?(m: string): Promise<void> }).setPermissionMode!(permissionMode);
         }
       } catch (e) {
         // Session might not be connected yet — settings will apply on next start
       }
     }
-
-    return newPlanMode;
   }
 
   private setupEventListeners(tabId: string): void {

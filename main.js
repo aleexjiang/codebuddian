@@ -2061,8 +2061,8 @@ var require_session = __commonJS({
         }
         this.messageIterator = null;
         this.hasSentMessage = true;
-        const t2 = await this.transport();
-        t2.sendUserMessage(message);
+        const t = await this.transport();
+        t.sendUserMessage(message);
       }
       /**
        * Stream messages from the agent.
@@ -2075,9 +2075,9 @@ var require_session = __commonJS({
         if (this.closed) {
           return;
         }
-        const t2 = await this.transport();
+        const t = await this.transport();
         if (!this.messageIterator) {
-          this.messageIterator = t2.messages();
+          this.messageIterator = t.messages();
         }
         while (true) {
           const { value: message, done } = await this.messageIterator.next();
@@ -2130,8 +2130,8 @@ var require_session = __commonJS({
         }
         this.abortController.abort();
         try {
-          const t2 = await this.transport();
-          await t2.sendControlRequest({
+          const t = await this.transport();
+          await t.sendControlRequest({
             subtype: "interrupt",
             session_id: this._sessionId,
             reason: "Interrupted by user"
@@ -2206,13 +2206,13 @@ var require_session = __commonJS({
         if (Object.keys(config).length === 0) {
           return;
         }
-        const t2 = await this.transport();
+        const t = await this.transport();
         const request = {
           subtype: "set_config",
           session_id: this._sessionId,
           config
         };
-        await t2.sendControlRequest(request);
+        await t.sendControlRequest(request);
       }
       /**
        * Get available permission modes from the CLI.
@@ -2222,12 +2222,12 @@ var require_session = __commonJS({
         if (this.closed) {
           throw new Error("Session is closed");
         }
-        const t2 = await this.transport();
+        const t = await this.transport();
         const request = {
           subtype: "get_available_modes",
           session_id: this.getSessionIdForControl()
         };
-        const response = await t2.sendControlRequest(request);
+        const response = await t.sendControlRequest(request);
         return response.availableModes;
       }
       /**
@@ -2238,11 +2238,11 @@ var require_session = __commonJS({
         if (this.closed) {
           throw new Error("Session is closed");
         }
-        const t2 = await this.transport();
+        const t = await this.transport();
         const request = {
           subtype: "get_available_models"
         };
-        const response = await t2.sendControlRequest(request);
+        const response = await t.sendControlRequest(request);
         return response.availableModels;
       }
       /**
@@ -2255,11 +2255,11 @@ var require_session = __commonJS({
         if (this.closed) {
           throw new Error("Session is closed");
         }
-        const t2 = await this.transport();
+        const t = await this.transport();
         const request = {
           subtype: "get_available_models"
         };
-        const response = await t2.sendControlRequest(request);
+        const response = await t.sendControlRequest(request);
         return (_a = response.rawModels) !== null && _a !== void 0 ? _a : [];
       }
       /**
@@ -2271,15 +2271,15 @@ var require_session = __commonJS({
         if (this.closed) {
           throw new Error("Session is closed");
         }
-        const t2 = await this.transport();
+        const t = await this.transport();
         const commandsPromise = new Promise((resolve, reject) => {
           const timeout = setTimeout(() => {
-            t2.offNotification("commands", handler);
+            t.offNotification("commands", handler);
             reject(new Error("Timeout waiting for commands notification"));
           }, 1e4);
           const handler = (notification) => {
             clearTimeout(timeout);
-            t2.offNotification("commands", handler);
+            t.offNotification("commands", handler);
             const data = notification.data;
             const commands = data.commands.map((cmd) => {
               const result = {
@@ -2294,13 +2294,13 @@ var require_session = __commonJS({
             });
             resolve(commands);
           };
-          t2.onNotification("commands", handler);
+          t.onNotification("commands", handler);
         });
         const subscribeRequest = {
           subtype: "subscribe",
           channel: "commands"
         };
-        await t2.sendControlRequest(subscribeRequest);
+        await t.sendControlRequest(subscribeRequest);
         return commandsPromise;
       }
       /**
@@ -2313,13 +2313,13 @@ var require_session = __commonJS({
         if (this.closed) {
           throw new Error("Session is closed");
         }
-        const t2 = await this.transport();
-        t2.onNotification("commands", handler);
+        const t = await this.transport();
+        t.onNotification("commands", handler);
         const subscribeRequest = {
           subtype: "subscribe",
           channel: "commands"
         };
-        await t2.sendControlRequest(subscribeRequest);
+        await t.sendControlRequest(subscribeRequest);
       }
       /**
        * Unsubscribe a handler from the commands channel.
@@ -2664,8 +2664,8 @@ var require_util = __commonJS({
       "set"
     ]);
     var getParsedType = (data) => {
-      const t2 = typeof data;
-      switch (t2) {
+      const t = typeof data;
+      switch (t) {
         case "undefined":
           return exports.ZodParsedType.undefined;
         case "string":
@@ -7075,8 +7075,8 @@ var require_util2 = __commonJS({
       return keyCount;
     }
     var getParsedType = (data) => {
-      const t2 = typeof data;
-      switch (t2) {
+      const t = typeof data;
+      switch (t) {
         case "undefined":
           return "undefined";
         case "string":
@@ -7115,7 +7115,7 @@ var require_util2 = __commonJS({
           }
           return "object";
         default:
-          throw new Error(`Unknown data type: ${t2}`);
+          throw new Error(`Unknown data type: ${t}`);
       }
     };
     exports.getParsedType = getParsedType;
@@ -7439,8 +7439,8 @@ var require_util2 = __commonJS({
       return "unknown";
     }
     function parsedType(data) {
-      const t2 = typeof data;
-      switch (t2) {
+      const t = typeof data;
+      switch (t) {
         case "number": {
           return Number.isNaN(data) ? "nan" : "number";
         }
@@ -7457,7 +7457,7 @@ var require_util2 = __commonJS({
           }
         }
       }
-      return t2;
+      return t;
     }
     function issue(...args) {
       const [iss, input, inst] = args;
@@ -9373,7 +9373,7 @@ var require_schemas = __commonJS({
       const unrecognized = [];
       const keySet = def.keySet;
       const _catchall = def.catchall._zod;
-      const t2 = _catchall.def.type;
+      const t = _catchall.def.type;
       const isOptionalIn = _catchall.optin === "optional";
       const isOptionalOut = _catchall.optout === "optional";
       for (const key in input) {
@@ -9381,7 +9381,7 @@ var require_schemas = __commonJS({
           continue;
         if (keySet.has(key))
           continue;
-        if (t2 === "never") {
+        if (t === "never") {
           unrecognized.push(key);
           continue;
         }
@@ -13268,16 +13268,16 @@ var require_he = __commonJS({
         number: { unit: "", shortLabel: "\u05E7\u05D8\u05DF", longLabel: "\u05D2\u05D3\u05D5\u05DC" }
         // no unit
       };
-      const typeEntry = (t2) => t2 ? TypeNames[t2] : void 0;
-      const typeLabel = (t2) => {
-        const e = typeEntry(t2);
+      const typeEntry = (t) => t ? TypeNames[t] : void 0;
+      const typeLabel = (t) => {
+        const e = typeEntry(t);
         if (e)
           return e.label;
-        return t2 ?? TypeNames.unknown.label;
+        return t ?? TypeNames.unknown.label;
       };
-      const withDefinite = (t2) => `\u05D4${typeLabel(t2)}`;
-      const verbFor = (t2) => {
-        const e = typeEntry(t2);
+      const withDefinite = (t) => `\u05D4${typeLabel(t)}`;
+      const verbFor = (t) => {
+        const e = typeEntry(t);
         const gender = e?.gender ?? "m";
         return gender === "f" ? "\u05E6\u05E8\u05D9\u05DB\u05D4 \u05DC\u05D4\u05D9\u05D5\u05EA" : "\u05E6\u05E8\u05D9\u05DA \u05DC\u05D4\u05D9\u05D5\u05EA";
       };
@@ -24742,8 +24742,8 @@ var require_from_json_schema = __commonJS({
       }
       const type = schema.type;
       if (Array.isArray(type)) {
-        const typeSchemas = type.map((t2) => {
-          const typeSchema = { ...schema, type: t2 };
+        const typeSchemas = type.map((t) => {
+          const typeSchema = { ...schema, type: t };
           return convertBaseSchema(typeSchema, ctx);
         });
         if (typeSchemas.length === 0) {
@@ -28680,12 +28680,12 @@ var require_zod_json_schema_compat = __commonJS({
     var z4mini = __importStar(require_v4_mini());
     var zod_compat_js_1 = require_zod_compat();
     var zod_to_json_schema_1 = require_cjs();
-    function mapMiniTarget(t2) {
-      if (!t2)
+    function mapMiniTarget(t) {
+      if (!t)
         return "draft-7";
-      if (t2 === "jsonSchema7" || t2 === "draft-7")
+      if (t === "jsonSchema7" || t === "draft-7")
         return "draft-7";
-      if (t2 === "jsonSchema2019-09" || t2 === "draft-2020-12")
+      if (t === "jsonSchema2019-09" || t === "draft-2020-12")
         return "draft-2020-12";
       return "draft-7";
     }
@@ -31199,7 +31199,7 @@ var require_dataType = __commonJS({
     exports.coerceAndCheckDataType = coerceAndCheckDataType;
     var COERCIBLE = /* @__PURE__ */ new Set(["string", "number", "integer", "boolean", "null"]);
     function coerceToTypes(types, coerceTypes) {
-      return coerceTypes ? types.filter((t2) => COERCIBLE.has(t2) || coerceTypes === "array" && t2 === "array") : [];
+      return coerceTypes ? types.filter((t) => COERCIBLE.has(t) || coerceTypes === "array" && t === "array") : [];
     }
     function coerceData(it, types, coerceTo) {
       const { gen, data, opts } = it;
@@ -31209,9 +31209,9 @@ var require_dataType = __commonJS({
         gen.if((0, codegen_1._)`${dataType} == 'object' && Array.isArray(${data}) && ${data}.length == 1`, () => gen.assign(data, (0, codegen_1._)`${data}[0]`).assign(dataType, (0, codegen_1._)`typeof ${data}`).if(checkDataTypes(types, data, opts.strictNumbers), () => gen.assign(coerced, data)));
       }
       gen.if((0, codegen_1._)`${coerced} !== undefined`);
-      for (const t2 of coerceTo) {
-        if (COERCIBLE.has(t2) || t2 === "array" && opts.coerceTypes === "array") {
-          coerceSpecificType(t2);
+      for (const t of coerceTo) {
+        if (COERCIBLE.has(t) || t === "array" && opts.coerceTypes === "array") {
+          coerceSpecificType(t);
         }
       }
       gen.else();
@@ -31221,8 +31221,8 @@ var require_dataType = __commonJS({
         gen.assign(data, coerced);
         assignParentData(it, coerced);
       });
-      function coerceSpecificType(t2) {
-        switch (t2) {
+      function coerceSpecificType(t) {
+        switch (t) {
           case "string":
             gen.elseIf((0, codegen_1._)`${dataType} == "number" || ${dataType} == "boolean"`).assign(coerced, (0, codegen_1._)`"" + ${data}`).elseIf((0, codegen_1._)`${data} === null`).assign(coerced, (0, codegen_1._)`""`);
             return;
@@ -31294,8 +31294,8 @@ var require_dataType = __commonJS({
       }
       if (types.number)
         delete types.integer;
-      for (const t2 in types)
-        cond = (0, codegen_1.and)(cond, checkDataType(t2, data, strictNums, correct));
+      for (const t in types)
+        cond = (0, codegen_1.and)(cond, checkDataType(t, data, strictNums, correct));
       return cond;
     }
     exports.checkDataTypes = checkDataTypes;
@@ -32210,9 +32210,9 @@ var require_validate = __commonJS({
         it.dataTypes = types;
         return;
       }
-      types.forEach((t2) => {
-        if (!includesType(it.dataTypes, t2)) {
-          strictTypesError(it, `type "${t2}" not allowed by context "${it.dataTypes.join(",")}"`);
+      types.forEach((t) => {
+        if (!includesType(it.dataTypes, t)) {
+          strictTypesError(it, `type "${t}" not allowed by context "${it.dataTypes.join(",")}"`);
         }
       });
       narrowSchemaTypes(it, types);
@@ -32228,7 +32228,7 @@ var require_validate = __commonJS({
         const rule = rules[keyword];
         if (typeof rule == "object" && (0, applicability_1.shouldUseRule)(it.schema, rule)) {
           const { type } = rule.definition;
-          if (type.length && !type.some((t2) => hasApplicableType(ts, t2))) {
+          if (type.length && !type.some((t) => hasApplicableType(ts, t))) {
             strictTypesError(it, `missing type "${type.join(",")}" for keyword "${keyword}"`);
           }
         }
@@ -32237,15 +32237,15 @@ var require_validate = __commonJS({
     function hasApplicableType(schTs, kwdT) {
       return schTs.includes(kwdT) || kwdT === "number" && schTs.includes("integer");
     }
-    function includesType(ts, t2) {
-      return ts.includes(t2) || t2 === "integer" && ts.includes("number");
+    function includesType(ts, t) {
+      return ts.includes(t) || t === "integer" && ts.includes("number");
     }
     function narrowSchemaTypes(it, withTypes) {
       const ts = [];
-      for (const t2 of it.dataTypes) {
-        if (includesType(withTypes, t2))
-          ts.push(t2);
-        else if (withTypes.includes("integer") && t2 === "number")
+      for (const t of it.dataTypes) {
+        if (includesType(withTypes, t))
+          ts.push(t);
+        else if (withTypes.includes("integer") && t === "number")
           ts.push("integer");
       }
       it.dataTypes = ts;
@@ -33943,7 +33943,7 @@ var require_core3 = __commonJS({
           type: (0, dataType_1.getJSONTypes)(def.type),
           schemaType: (0, dataType_1.getJSONTypes)(def.schemaType)
         };
-        (0, util_1.eachItem)(keyword, definition.type.length === 0 ? (k) => addRule.call(this, k, definition) : (k) => definition.type.forEach((t2) => addRule.call(this, k, definition, t2)));
+        (0, util_1.eachItem)(keyword, definition.type.length === 0 ? (k) => addRule.call(this, k, definition) : (k) => definition.type.forEach((t) => addRule.call(this, k, definition, t)));
         return this;
       }
       getKeyword(keyword) {
@@ -34142,7 +34142,7 @@ var require_core3 = __commonJS({
       if (dataType && post)
         throw new Error('keyword with "post" flag cannot have "type"');
       const { RULES } = this;
-      let ruleGroup = post ? RULES.post : RULES.rules.find(({ type: t2 }) => t2 === dataType);
+      let ruleGroup = post ? RULES.post : RULES.rules.find(({ type: t }) => t === dataType);
       if (!ruleGroup) {
         ruleGroup = { type: dataType, rules: [] };
         RULES.rules.push(ruleGroup);
@@ -34690,7 +34690,7 @@ var require_uniqueItems = __commonJS({
           gen.if((0, codegen_1._)`${i} > 1`, () => (canOptimize() ? loopN : loopN2)(i, j));
         }
         function canOptimize() {
-          return itemTypes.length > 0 && !itemTypes.some((t2) => t2 === "object" || t2 === "array");
+          return itemTypes.length > 0 && !itemTypes.some((t) => t === "object" || t === "array");
         }
         function loopN(i, j) {
           const item = gen.name("item");
@@ -37941,7 +37941,7 @@ var require_dataType2 = __commonJS({
     exports.coerceAndCheckDataType = coerceAndCheckDataType;
     var COERCIBLE = /* @__PURE__ */ new Set(["string", "number", "integer", "boolean", "null"]);
     function coerceToTypes(types, coerceTypes) {
-      return coerceTypes ? types.filter((t2) => COERCIBLE.has(t2) || coerceTypes === "array" && t2 === "array") : [];
+      return coerceTypes ? types.filter((t) => COERCIBLE.has(t) || coerceTypes === "array" && t === "array") : [];
     }
     function coerceData(it, types, coerceTo) {
       const { gen, data, opts } = it;
@@ -37951,9 +37951,9 @@ var require_dataType2 = __commonJS({
         gen.if((0, codegen_1._)`${dataType} == 'object' && Array.isArray(${data}) && ${data}.length == 1`, () => gen.assign(data, (0, codegen_1._)`${data}[0]`).assign(dataType, (0, codegen_1._)`typeof ${data}`).if(checkDataTypes(types, data, opts.strictNumbers), () => gen.assign(coerced, data)));
       }
       gen.if((0, codegen_1._)`${coerced} !== undefined`);
-      for (const t2 of coerceTo) {
-        if (COERCIBLE.has(t2) || t2 === "array" && opts.coerceTypes === "array") {
-          coerceSpecificType(t2);
+      for (const t of coerceTo) {
+        if (COERCIBLE.has(t) || t === "array" && opts.coerceTypes === "array") {
+          coerceSpecificType(t);
         }
       }
       gen.else();
@@ -37963,8 +37963,8 @@ var require_dataType2 = __commonJS({
         gen.assign(data, coerced);
         assignParentData(it, coerced);
       });
-      function coerceSpecificType(t2) {
-        switch (t2) {
+      function coerceSpecificType(t) {
+        switch (t) {
           case "string":
             gen.elseIf((0, codegen_1._)`${dataType} == "number" || ${dataType} == "boolean"`).assign(coerced, (0, codegen_1._)`"" + ${data}`).elseIf((0, codegen_1._)`${data} === null`).assign(coerced, (0, codegen_1._)`""`);
             return;
@@ -38036,8 +38036,8 @@ var require_dataType2 = __commonJS({
       }
       if (types.number)
         delete types.integer;
-      for (const t2 in types)
-        cond = (0, codegen_1.and)(cond, checkDataType(t2, data, strictNums, correct));
+      for (const t in types)
+        cond = (0, codegen_1.and)(cond, checkDataType(t, data, strictNums, correct));
       return cond;
     }
     exports.checkDataTypes = checkDataTypes;
@@ -38917,9 +38917,9 @@ var require_validate2 = __commonJS({
         it.dataTypes = types;
         return;
       }
-      types.forEach((t2) => {
-        if (!includesType(it.dataTypes, t2)) {
-          strictTypesError(it, `type "${t2}" not allowed by context "${it.dataTypes.join(",")}"`);
+      types.forEach((t) => {
+        if (!includesType(it.dataTypes, t)) {
+          strictTypesError(it, `type "${t}" not allowed by context "${it.dataTypes.join(",")}"`);
         }
       });
       narrowSchemaTypes(it, types);
@@ -38935,7 +38935,7 @@ var require_validate2 = __commonJS({
         const rule = rules[keyword];
         if (typeof rule == "object" && (0, applicability_1.shouldUseRule)(it.schema, rule)) {
           const { type } = rule.definition;
-          if (type.length && !type.some((t2) => hasApplicableType(ts, t2))) {
+          if (type.length && !type.some((t) => hasApplicableType(ts, t))) {
             strictTypesError(it, `missing type "${type.join(",")}" for keyword "${keyword}"`);
           }
         }
@@ -38944,15 +38944,15 @@ var require_validate2 = __commonJS({
     function hasApplicableType(schTs, kwdT) {
       return schTs.includes(kwdT) || kwdT === "number" && schTs.includes("integer");
     }
-    function includesType(ts, t2) {
-      return ts.includes(t2) || t2 === "integer" && ts.includes("number");
+    function includesType(ts, t) {
+      return ts.includes(t) || t === "integer" && ts.includes("number");
     }
     function narrowSchemaTypes(it, withTypes) {
       const ts = [];
-      for (const t2 of it.dataTypes) {
-        if (includesType(withTypes, t2))
-          ts.push(t2);
-        else if (withTypes.includes("integer") && t2 === "number")
+      for (const t of it.dataTypes) {
+        if (includesType(withTypes, t))
+          ts.push(t);
+        else if (withTypes.includes("integer") && t === "number")
           ts.push("integer");
       }
       it.dataTypes = ts;
@@ -39841,7 +39841,7 @@ var require_core5 = __commonJS({
           type: (0, dataType_1.getJSONTypes)(def.type),
           schemaType: (0, dataType_1.getJSONTypes)(def.schemaType)
         };
-        (0, util_1.eachItem)(keyword, definition.type.length === 0 ? (k) => addRule.call(this, k, definition) : (k) => definition.type.forEach((t2) => addRule.call(this, k, definition, t2)));
+        (0, util_1.eachItem)(keyword, definition.type.length === 0 ? (k) => addRule.call(this, k, definition) : (k) => definition.type.forEach((t) => addRule.call(this, k, definition, t)));
         return this;
       }
       getKeyword(keyword) {
@@ -40040,7 +40040,7 @@ var require_core5 = __commonJS({
       if (dataType && post)
         throw new Error('keyword with "post" flag cannot have "type"');
       const { RULES } = this;
-      let ruleGroup = post ? RULES.post : RULES.rules.find(({ type: t2 }) => t2 === dataType);
+      let ruleGroup = post ? RULES.post : RULES.rules.find(({ type: t }) => t === dataType);
       if (!ruleGroup) {
         ruleGroup = { type: dataType, rules: [] };
         RULES.rules.push(ruleGroup);
@@ -40588,7 +40588,7 @@ var require_uniqueItems2 = __commonJS({
           gen.if((0, codegen_1._)`${i} > 1`, () => (canOptimize() ? loopN : loopN2)(i, j));
         }
         function canOptimize() {
-          return itemTypes.length > 0 && !itemTypes.some((t2) => t2 === "object" || t2 === "array");
+          return itemTypes.length > 0 && !itemTypes.some((t) => t === "object" || t === "array");
         }
         function loopN(i, j) {
           const item = gen.name("item");
@@ -43672,7 +43672,7 @@ var require_mcp = __commonJS({
         return createCompletionResult(suggestions);
       }
       async handleResourceCompletion(request, ref) {
-        const template = Object.values(this._registeredResourceTemplates).find((t2) => t2.resourceTemplate.uriTemplate.toString() === ref.uri);
+        const template = Object.values(this._registeredResourceTemplates).find((t) => t.resourceTemplate.uriTemplate.toString() === ref.uri);
         if (!template) {
           if (this._registeredResources[ref.uri]) {
             return EMPTY_COMPLETION_RESULT;
@@ -44827,7 +44827,7 @@ function createEmptyTab(id) {
     messages: [],
     status: "idle",
     permissionMode: "default",
-    isPlanMode: false,
+    mode: "ask",
     sessionId: null,
     model: "",
     effort: "medium",
@@ -44864,7 +44864,7 @@ var ChatStateManager = class {
     return tab;
   }
   removeTab(id) {
-    this.state.tabs = this.state.tabs.filter((t2) => t2.id !== id);
+    this.state.tabs = this.state.tabs.filter((t) => t.id !== id);
     if (this.state.activeTabId === id) {
       this.state.activeTabId = this.state.tabs.length > 0 ? this.state.tabs[0].id : null;
     }
@@ -44875,17 +44875,17 @@ var ChatStateManager = class {
     this.notify();
   }
   getActiveTab() {
-    return this.state.tabs.find((t2) => t2.id === this.state.activeTabId);
+    return this.state.tabs.find((t) => t.id === this.state.activeTabId);
   }
   updateTab(id, update) {
-    const tab = this.state.tabs.find((t2) => t2.id === id);
+    const tab = this.state.tabs.find((t) => t.id === id);
     if (tab) {
       Object.assign(tab, update, { updatedAt: Date.now() });
       this.notify();
     }
   }
   addMessage(tabId, message) {
-    const tab = this.state.tabs.find((t2) => t2.id === tabId);
+    const tab = this.state.tabs.find((t) => t.id === tabId);
     if (tab) {
       tab.messages.push(message);
       tab.updatedAt = Date.now();
@@ -44893,7 +44893,7 @@ var ChatStateManager = class {
     }
   }
   updateLastAssistantMessage(tabId, content) {
-    const tab = this.state.tabs.find((t2) => t2.id === tabId);
+    const tab = this.state.tabs.find((t) => t.id === tabId);
     if (tab) {
       const lastAssistant = [...tab.messages].reverse().find((m) => m.role === "assistant");
       if (lastAssistant) {
@@ -44905,7 +44905,7 @@ var ChatStateManager = class {
     }
   }
   finalizeLastAssistantMessage(tabId) {
-    const tab = this.state.tabs.find((t2) => t2.id === tabId);
+    const tab = this.state.tabs.find((t) => t.id === tabId);
     if (tab) {
       const lastAssistant = [...tab.messages].reverse().find((m) => m.role === "assistant");
       if (lastAssistant) {
@@ -44933,7 +44933,7 @@ var Tab = class {
     this.stateManager = stateManager;
   }
   get data() {
-    return this.stateManager.getState().tabs.find((t2) => t2.id === this.id);
+    return this.stateManager.getState().tabs.find((t) => t.id === this.id);
   }
   isActive() {
     return this.stateManager.getState().activeTabId === this.id;
@@ -45124,11 +45124,14 @@ var MessageRenderer = class {
     this.app = app;
   }
   renderMessage(message) {
+    if (message.role === "system" && (!message.content || message.content.trim().length === 0)) {
+      return null;
+    }
     const msgEl = this.containerEl.createDiv({
       cls: `codebuddian-message codebuddian-message-${message.role}`
     });
     const headerEl = msgEl.createDiv({ cls: "codebuddian-message-header" });
-    const roleLabel = message.role === "user" ? "\u{1F464} You" : message.role === "assistant" ? "\u{1F916} CodeBuddy" : "\u2699\uFE0F System";
+    const roleLabel = message.role === "user" ? "\u{1F464} You" : message.role === "assistant" ? "\u{1F916} CodeBuddy" : "\u{1F4A1}";
     headerEl.createSpan({ text: roleLabel, cls: "codebuddian-message-role" });
     headerEl.createSpan({
       text: new Date(message.timestamp).toLocaleTimeString(),
@@ -45149,6 +45152,8 @@ var MessageRenderer = class {
           "",
           this.component
         );
+      } else if (message.role === "system") {
+        contentEl.setText(message.content);
       } else {
         contentEl.setText(message.content);
       }
@@ -45291,6 +45296,11 @@ var StreamController = class {
 };
 
 // src/features/chat/controllers/ConversationController.ts
+var MODE_TO_PERMISSION = {
+  ask: "default",
+  plan: "plan",
+  craft: "acceptEdits"
+};
 var ConversationController = class {
   constructor(stateManager) {
     this.stateManager = stateManager;
@@ -45370,25 +45380,23 @@ var ConversationController = class {
     this.stateManager.addMessage(tab.id, interruptedMsg);
     this.stateManager.updateTab(tab.id, { status: "idle" });
   }
-  async togglePlanMode() {
+  async setMode(mode) {
     const tab = this.stateManager.getActiveTab();
-    if (!tab) return false;
-    const newPlanMode = !tab.isPlanMode;
-    const newPermissionMode = newPlanMode ? "plan" : "default";
+    if (!tab) return;
+    const permissionMode = MODE_TO_PERMISSION[mode];
     this.stateManager.updateTab(tab.id, {
-      isPlanMode: newPlanMode,
-      permissionMode: newPermissionMode
+      mode,
+      permissionMode
     });
     if (this.sessionHandle && this.runtime) {
       try {
         const sdkSession = this.runtime.getSdkSession();
         if (sdkSession) {
-          await sdkSession.setPermissionMode(newPermissionMode);
+          await sdkSession.setPermissionMode(permissionMode);
         }
       } catch (e) {
       }
     }
-    return newPlanMode;
   }
   setupEventListeners(tabId) {
     if (!this.sessionHandle) return;
@@ -45486,62 +45494,12 @@ var InputController = class {
   }
 };
 
-// src/i18n/i18n.ts
-var zhCN = {
-  "chat.placeholder": "\u5411 CodeBuddy \u53D1\u9001\u6D88\u606F\u2026\uFF08Enter \u53D1\u9001\uFF0CShift+Enter \u6362\u884C\uFF09",
-  "chat.send": "\u53D1\u9001",
-  "chat.newTab": "\u65B0\u5BF9\u8BDD",
-  "chat.cancel": "\u505C\u6B62",
-  "chat.planMode": "\u8BA1\u5212\u6A21\u5F0F",
-  "chat.model": "\u6A21\u578B",
-  "chat.effort": "\u6295\u5165\u5EA6",
-  "settings.title": "Codebuddian \u8BBE\u7F6E",
-  "settings.cliPath": "CodeBuddy CLI \u8DEF\u5F84",
-  "settings.model": "\u6A21\u578B",
-  "settings.permissionMode": "\u6743\u9650\u6A21\u5F0F",
-  "approval.title": "\u9700\u8981\u5BA1\u6279",
-  "approval.approve": "\u6279\u51C6",
-  "approval.deny": "\u62D2\u7EDD",
-  "error.cliNotFound": "\u672A\u627E\u5230 CodeBuddy CLI\uFF0C\u8BF7\u5728\u8BBE\u7F6E\u4E2D\u914D\u7F6E\u8DEF\u5F84",
-  "error.sessionFailed": "\u4F1A\u8BDD\u542F\u52A8\u5931\u8D25"
-};
-var enUS = {
-  "chat.placeholder": "Message CodeBuddy\u2026 (Enter to send, Shift+Enter for newline)",
-  "chat.send": "Send",
-  "chat.newTab": "New chat",
-  "chat.cancel": "Cancel",
-  "chat.planMode": "Plan mode",
-  "chat.model": "Model",
-  "chat.effort": "Effort",
-  "settings.title": "Codebuddian Settings",
-  "settings.cliPath": "CodeBuddy CLI path",
-  "settings.model": "Model",
-  "settings.permissionMode": "Permission mode",
-  "approval.title": "Approval required",
-  "approval.approve": "Approve",
-  "approval.deny": "Deny",
-  "error.cliNotFound": "CodeBuddy CLI not found, please set path in settings",
-  "error.sessionFailed": "Session failed to start"
-};
-var translations = {
-  "zh-CN": zhCN,
-  "en": enUS,
-  "en-US": enUS
-};
-var currentLocale = "en";
-function setLocale(locale) {
-  currentLocale = locale;
-}
-function t(key, ...args) {
-  const dict = translations[currentLocale] || translations["en"];
-  let str = dict[key] || key;
-  args.forEach((arg, i) => {
-    str = str.replace(`{${i}}`, String(arg));
-  });
-  return str;
-}
-
 // src/features/chat/CodebuddianView.ts
+var MODE_CONFIG = [
+  { id: "ask", label: "Ask", icon: "message-circle", desc: "Chat normally" },
+  { id: "plan", label: "Plan", icon: "list-checks", desc: "Plan only, no edits" },
+  { id: "craft", label: "Craft", icon: "wand-2", desc: "Auto-accept edits" }
+];
 var CodebuddianChatView = class extends import_obsidian2.ItemView {
   stateManager;
   tabManager;
@@ -45554,10 +45512,9 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
   sendButtonEl;
   modelSelectEl;
   effortSelectEl;
-  headerEl;
-  inputWrapperEl;
-  planModeBtnEl;
   stopBtnEl;
+  modeBtnEls = /* @__PURE__ */ new Map();
+  inputWrapperEl;
   runtime = null;
   modelsLoaded = false;
   constructor(leaf) {
@@ -45583,37 +45540,12 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
     const container = this.containerEl.children[1];
     container.empty();
     container.addClass("codebuddian-chat-container");
-    this.headerEl = container.createDiv({ cls: "codebuddian-header" });
-    const titleSlot = this.headerEl.createDiv({ cls: "codebuddian-title-slot" });
+    const headerEl = container.createDiv({ cls: "codebuddian-header" });
+    const titleSlot = headerEl.createDiv({ cls: "codebuddian-title-slot" });
     const logoEl = titleSlot.createSpan({ cls: "codebuddian-logo" });
     logoEl.appendChild(this.createLogoSvg());
     titleSlot.createEl("h4", { text: "CodeBuddy", cls: "codebuddian-title-text" });
-    const actionsEl = this.headerEl.createDiv({ cls: "codebuddian-header-actions" });
-    const modelWrap = actionsEl.createDiv({ cls: "codebuddian-control-group" });
-    modelWrap.createEl("label", { cls: "codebuddian-control-label", text: t("chat.model") });
-    this.modelSelectEl = modelWrap.createEl("select", { cls: "codebuddian-select codebuddian-model-select" });
-    this.renderModelOptions();
-    this.modelSelectEl.addEventListener("change", () => {
-      const tab = this.stateManager.getActiveTab();
-      if (tab) {
-        this.stateManager.updateTab(tab.id, { model: this.modelSelectEl.value });
-        this.applyModelToSession(this.modelSelectEl.value);
-      }
-    });
-    const effortWrap = actionsEl.createDiv({ cls: "codebuddian-control-group" });
-    effortWrap.createEl("label", { cls: "codebuddian-control-label", text: t("chat.effort") });
-    this.effortSelectEl = effortWrap.createEl("select", { cls: "codebuddian-select codebuddian-effort-select" });
-    EFFORT_OPTIONS.forEach((e) => {
-      const opt = this.effortSelectEl.createEl("option", { text: e.label });
-      opt.value = e.id;
-    });
-    this.effortSelectEl.addEventListener("change", () => {
-      const tab = this.stateManager.getActiveTab();
-      if (tab) {
-        this.stateManager.updateTab(tab.id, { effort: this.effortSelectEl.value });
-        this.applyEffortToSession(this.effortSelectEl.value);
-      }
-    });
+    const actionsEl = headerEl.createDiv({ cls: "codebuddian-header-actions" });
     const newTabBtn = actionsEl.createDiv({ cls: "codebuddian-header-btn", attr: { "aria-label": "New tab" } });
     (0, import_obsidian2.setIcon)(newTabBtn, "square-plus");
     newTabBtn.addEventListener("click", () => this.tabManager.createTab());
@@ -45626,18 +45558,46 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
     const messagesWrapper = container.createDiv({ cls: "codebuddian-messages-wrapper" });
     this.messagesContainer = messagesWrapper.createDiv({ cls: "codebuddian-messages" });
     const inputContainer = container.createDiv({ cls: "codebuddian-input-container" });
-    this.inputWrapperEl = inputContainer.createDiv({ cls: "codebuddian-input-wrapper" });
-    const toolbar = this.inputWrapperEl.createDiv({ cls: "codebuddian-input-toolbar" });
-    this.planModeBtnEl = toolbar.createEl("button", {
-      cls: "codebuddian-toolbar-btn codebuddian-plan-btn",
-      attr: { "aria-label": "Toggle plan mode (Shift+Tab)" }
+    const inputToolbar = inputContainer.createDiv({ cls: "codebuddian-input-toolbar-row" });
+    const modelGroup = inputToolbar.createDiv({ cls: "codebuddian-toolbar-group" });
+    (0, import_obsidian2.setIcon)(modelGroup.createSpan({ cls: "codebuddian-toolbar-group-icon" }), "cpu");
+    this.modelSelectEl = modelGroup.createEl("select", { cls: "codebuddian-select codebuddian-toolbar-select" });
+    this.renderModelOptions();
+    this.modelSelectEl.addEventListener("change", () => {
+      const tab = this.stateManager.getActiveTab();
+      if (tab) {
+        this.stateManager.updateTab(tab.id, { model: this.modelSelectEl.value });
+        this.applyModelToSession(this.modelSelectEl.value);
+      }
     });
-    (0, import_obsidian2.setIcon)(this.planModeBtnEl, "list-checks");
-    this.planModeBtnEl.addEventListener("click", () => {
-      this.handleTogglePlanMode();
+    const modeGroup = inputToolbar.createDiv({ cls: "codebuddian-toolbar-group codebuddian-mode-group" });
+    for (const modeCfg of MODE_CONFIG) {
+      const btn = modeGroup.createEl("button", {
+        cls: "codebuddian-mode-btn",
+        attr: { "aria-label": modeCfg.desc, title: modeCfg.desc, "data-mode": modeCfg.id }
+      });
+      (0, import_obsidian2.setIcon)(btn, modeCfg.icon);
+      btn.createSpan({ text: modeCfg.label, cls: "codebuddian-mode-label" });
+      btn.addEventListener("click", () => {
+        this.handleSetMode(modeCfg.id);
+      });
+      this.modeBtnEls.set(modeCfg.id, btn);
+    }
+    const effortGroup = inputToolbar.createDiv({ cls: "codebuddian-toolbar-group" });
+    (0, import_obsidian2.setIcon)(effortGroup.createSpan({ cls: "codebuddian-toolbar-group-icon" }), "gauge");
+    this.effortSelectEl = effortGroup.createEl("select", { cls: "codebuddian-select codebuddian-toolbar-select" });
+    EFFORT_OPTIONS.forEach((e) => {
+      const opt = this.effortSelectEl.createEl("option", { text: e.label });
+      opt.value = e.id;
     });
-    const planLabel = toolbar.createSpan({ cls: "codebuddian-plan-label", text: "PLAN" });
-    this.stopBtnEl = toolbar.createEl("button", {
+    this.effortSelectEl.addEventListener("change", () => {
+      const tab = this.stateManager.getActiveTab();
+      if (tab) {
+        this.stateManager.updateTab(tab.id, { effort: this.effortSelectEl.value });
+        this.applyEffortToSession(this.effortSelectEl.value);
+      }
+    });
+    this.stopBtnEl = inputToolbar.createEl("button", {
       cls: "codebuddian-toolbar-btn codebuddian-stop-btn",
       attr: { "aria-label": "Stop generation (Esc)" }
     });
@@ -45645,6 +45605,7 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
     this.stopBtnEl.addEventListener("click", () => {
       this.conversationController.cancel();
     });
+    this.inputWrapperEl = inputContainer.createDiv({ cls: "codebuddian-input-wrapper" });
     this.textareaEl = this.inputWrapperEl.createEl("textarea", {
       cls: "codebuddian-input",
       attr: {
@@ -45665,12 +45626,6 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
       this.stateManager
     );
     this.stateManager.subscribe(() => this.render());
-    this.registerDomEvent(this.containerEl, "keydown", (e) => {
-      if (e.key === "Tab" && e.shiftKey && !e.isComposing) {
-        e.preventDefault();
-        this.handleTogglePlanMode();
-      }
-    });
     this.scope.register([], "Escape", (e) => {
       if (e.isComposing) return false;
       const tab = this.stateManager.getActiveTab();
@@ -45685,9 +45640,10 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
   async onClose() {
     await this.conversationController.dispose();
   }
-  async handleTogglePlanMode() {
-    const isPlan = await this.conversationController.togglePlanMode();
-    new import_obsidian2.Notice(isPlan ? "Plan mode enabled" : "Plan mode disabled", 1500);
+  async handleSetMode(mode) {
+    await this.conversationController.setMode(mode);
+    const label = MODE_CONFIG.find((m) => m.id === mode)?.label ?? mode;
+    new import_obsidian2.Notice(`${label} mode`, 1500);
   }
   /** Apply model change to the live SDK session. */
   async applyModelToSession(model) {
@@ -45757,23 +45713,21 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
   render() {
     const state = this.stateManager.getState();
     this.tabBar.render(
-      state.tabs.map((t2) => ({
-        id: t2.id,
-        title: t2.title,
-        isActive: t2.id === state.activeTabId
+      state.tabs.map((t) => ({
+        id: t.id,
+        title: t.title,
+        isActive: t.id === state.activeTabId
       }))
     );
     const activeTab = this.stateManager.getActiveTab();
     if (activeTab) {
       this.modelSelectEl.value = activeTab.model;
       this.effortSelectEl.value = activeTab.effort;
-      const isPlan = activeTab.isPlanMode;
-      this.planModeBtnEl.toggleClass("is-active", isPlan);
-      this.inputWrapperEl.toggleClass("codebuddian-plan-mode", isPlan);
-      const planLabel = this.inputWrapperEl.querySelector(".codebuddian-plan-label");
-      if (planLabel) {
-        planLabel.style.display = isPlan ? "" : "none";
+      for (const [modeId, btn] of this.modeBtnEls) {
+        btn.toggleClass("is-active", modeId === activeTab.mode);
       }
+      this.inputWrapperEl.removeClass("codebuddian-mode-ask", "codebuddian-mode-plan", "codebuddian-mode-craft");
+      this.inputWrapperEl.addClass(`codebuddian-mode-${activeTab.mode}`);
       const isStreaming = activeTab.status === "streaming";
       this.stopBtnEl.toggleClass("is-visible", isStreaming);
       this.sendButtonEl.toggleClass("is-disabled", isStreaming);
@@ -46025,6 +45979,12 @@ function registerIcons() {
 			<text x="50" y="65" font-size="50" text-anchor="middle" fill="currentColor">\u{1F916}</text>
 		</svg>
 	`);
+}
+
+// src/i18n/i18n.ts
+var currentLocale = "en";
+function setLocale(locale) {
+  currentLocale = locale;
 }
 
 // src/utils/logger.ts

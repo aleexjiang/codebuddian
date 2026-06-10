@@ -7,7 +7,14 @@ import { MessageRenderer } from './rendering/MessageRenderer';
 import { ConversationController } from './controllers/ConversationController';
 import { InputController } from './controllers/InputController';
 import type { ChatRuntime } from '../../core/runtime/ChatRuntime';
+import type { ChatMode } from './state/types';
 import { t } from '../../i18n/i18n';
+
+const MODE_CONFIG: { id: ChatMode; label: string; icon: string; desc: string }[] = [
+  { id: 'ask', label: 'Ask', icon: 'message-circle', desc: 'Chat normally' },
+  { id: 'plan', label: 'Plan', icon: 'list-checks', desc: 'Plan only, no edits' },
+  { id: 'craft', label: 'Craft', icon: 'wand-2', desc: 'Auto-accept edits' },
+];
 
 export class CodebuddianChatView extends ItemView {
   private stateManager: ChatStateManager;
@@ -21,10 +28,9 @@ export class CodebuddianChatView extends ItemView {
   private sendButtonEl!: HTMLButtonElement;
   private modelSelectEl!: HTMLSelectElement;
   private effortSelectEl!: HTMLSelectElement;
-  private headerEl!: HTMLElement;
-  private inputWrapperEl!: HTMLElement;
-  private planModeBtnEl!: HTMLButtonElement;
   private stopBtnEl!: HTMLButtonElement;
+  private modeBtnEls = new Map<ChatMode, HTMLButtonElement>();
+  private inputWrapperEl!: HTMLElement;
   private runtime: ChatRuntime | null = null;
   private modelsLoaded = false;
 
@@ -57,52 +63,17 @@ export class CodebuddianChatView extends ItemView {
     container.empty();
     container.addClass('codebuddian-chat-container');
 
-    // ===== Header / Toolbar =====
-    this.headerEl = container.createDiv({ cls: 'codebuddian-header' });
+    // ===== Header (simplified) =====
+    const headerEl = container.createDiv({ cls: 'codebuddian-header' });
 
     // Title slot: logo + brand
-    const titleSlot = this.headerEl.createDiv({ cls: 'codebuddian-title-slot' });
-
-    // Logo SVG (CodeBuddy brand icon)
+    const titleSlot = headerEl.createDiv({ cls: 'codebuddian-title-slot' });
     const logoEl = titleSlot.createSpan({ cls: 'codebuddian-logo' });
     logoEl.appendChild(this.createLogoSvg());
-
-    // Brand text
     titleSlot.createEl('h4', { text: 'CodeBuddy', cls: 'codebuddian-title-text' });
 
-    // Header actions (model + effort selectors, new tab, etc.)
-    const actionsEl = this.headerEl.createDiv({ cls: 'codebuddian-header-actions' });
-
-    // Model selector
-    const modelWrap = actionsEl.createDiv({ cls: 'codebuddian-control-group' });
-    modelWrap.createEl('label', { cls: 'codebuddian-control-label', text: t('chat.model') });
-    this.modelSelectEl = modelWrap.createEl('select', { cls: 'codebuddian-select codebuddian-model-select' });
-    this.renderModelOptions();
-    this.modelSelectEl.addEventListener('change', () => {
-      const tab = this.stateManager.getActiveTab();
-      if (tab) {
-        this.stateManager.updateTab(tab.id, { model: this.modelSelectEl.value });
-        this.applyModelToSession(this.modelSelectEl.value);
-      }
-    });
-
-    // Effort selector
-    const effortWrap = actionsEl.createDiv({ cls: 'codebuddian-control-group' });
-    effortWrap.createEl('label', { cls: 'codebuddian-control-label', text: t('chat.effort') });
-    this.effortSelectEl = effortWrap.createEl('select', { cls: 'codebuddian-select codebuddian-effort-select' });
-    EFFORT_OPTIONS.forEach(e => {
-      const opt = this.effortSelectEl.createEl('option', { text: e.label });
-      opt.value = e.id;
-    });
-    this.effortSelectEl.addEventListener('change', () => {
-      const tab = this.stateManager.getActiveTab();
-      if (tab) {
-        this.stateManager.updateTab(tab.id, { effort: this.effortSelectEl.value });
-        this.applyEffortToSession(this.effortSelectEl.value);
-      }
-    });
-
-    // New tab button ( Obsidian icon )
+    // Header actions: new tab button only
+    const actionsEl = headerEl.createDiv({ cls: 'codebuddian-header-actions' });
     const newTabBtn = actionsEl.createDiv({ cls: 'codebuddian-header-btn', attr: { 'aria-label': 'New tab' } });
     setIcon(newTabBtn, 'square-plus');
     newTabBtn.addEventListener('click', () => this.tabManager.createTab());
@@ -115,34 +86,62 @@ export class CodebuddianChatView extends ItemView {
       onNewTab: () => this.tabManager.createTab(),
     });
 
-    // Messages area wrapper (for scroll-to-bottom positioning)
+    // Messages area
     const messagesWrapper = container.createDiv({ cls: 'codebuddian-messages-wrapper' });
     this.messagesContainer = messagesWrapper.createDiv({ cls: 'codebuddian-messages' });
 
-    // Input area
+    // ===== Input Area =====
     const inputContainer = container.createDiv({ cls: 'codebuddian-input-container' });
 
-    // Input wrapper (bordered box like claudian)
-    this.inputWrapperEl = inputContainer.createDiv({ cls: 'codebuddian-input-wrapper' });
+    // -- Input toolbar (model + mode + effort) --
+    const inputToolbar = inputContainer.createDiv({ cls: 'codebuddian-input-toolbar-row' });
 
-    // Toolbar inside input wrapper (top)
-    const toolbar = this.inputWrapperEl.createDiv({ cls: 'codebuddian-input-toolbar' });
-
-    // Plan mode button
-    this.planModeBtnEl = toolbar.createEl('button', {
-      cls: 'codebuddian-toolbar-btn codebuddian-plan-btn',
-      attr: { 'aria-label': 'Toggle plan mode (Shift+Tab)' },
+    // Model selector
+    const modelGroup = inputToolbar.createDiv({ cls: 'codebuddian-toolbar-group' });
+    setIcon(modelGroup.createSpan({ cls: 'codebuddian-toolbar-group-icon' }), 'cpu');
+    this.modelSelectEl = modelGroup.createEl('select', { cls: 'codebuddian-select codebuddian-toolbar-select' });
+    this.renderModelOptions();
+    this.modelSelectEl.addEventListener('change', () => {
+      const tab = this.stateManager.getActiveTab();
+      if (tab) {
+        this.stateManager.updateTab(tab.id, { model: this.modelSelectEl.value });
+        this.applyModelToSession(this.modelSelectEl.value);
+      }
     });
-    setIcon(this.planModeBtnEl, 'list-checks');
-    this.planModeBtnEl.addEventListener('click', () => {
-      this.handleTogglePlanMode();
+
+    // Mode selector (Ask / Plan / Craft)
+    const modeGroup = inputToolbar.createDiv({ cls: 'codebuddian-toolbar-group codebuddian-mode-group' });
+    for (const modeCfg of MODE_CONFIG) {
+      const btn = modeGroup.createEl('button', {
+        cls: 'codebuddian-mode-btn',
+        attr: { 'aria-label': modeCfg.desc, title: modeCfg.desc, 'data-mode': modeCfg.id },
+      });
+      setIcon(btn, modeCfg.icon);
+      btn.createSpan({ text: modeCfg.label, cls: 'codebuddian-mode-label' });
+      btn.addEventListener('click', () => {
+        this.handleSetMode(modeCfg.id);
+      });
+      this.modeBtnEls.set(modeCfg.id, btn);
+    }
+
+    // Effort selector
+    const effortGroup = inputToolbar.createDiv({ cls: 'codebuddian-toolbar-group' });
+    setIcon(effortGroup.createSpan({ cls: 'codebuddian-toolbar-group-icon' }), 'gauge');
+    this.effortSelectEl = effortGroup.createEl('select', { cls: 'codebuddian-select codebuddian-toolbar-select' });
+    EFFORT_OPTIONS.forEach(e => {
+      const opt = this.effortSelectEl.createEl('option', { text: e.label });
+      opt.value = e.id;
+    });
+    this.effortSelectEl.addEventListener('change', () => {
+      const tab = this.stateManager.getActiveTab();
+      if (tab) {
+        this.stateManager.updateTab(tab.id, { effort: this.effortSelectEl.value });
+        this.applyEffortToSession(this.effortSelectEl.value);
+      }
     });
 
-    // Plan mode label (shown when active)
-    const planLabel = toolbar.createSpan({ cls: 'codebuddian-plan-label', text: 'PLAN' });
-
-    // Stop button (shown only during streaming)
-    this.stopBtnEl = toolbar.createEl('button', {
+    // Stop button (inline, only visible during streaming)
+    this.stopBtnEl = inputToolbar.createEl('button', {
       cls: 'codebuddian-toolbar-btn codebuddian-stop-btn',
       attr: { 'aria-label': 'Stop generation (Esc)' },
     });
@@ -151,7 +150,9 @@ export class CodebuddianChatView extends ItemView {
       this.conversationController.cancel();
     });
 
-    // Textarea
+    // -- Input wrapper (textarea + send) --
+    this.inputWrapperEl = inputContainer.createDiv({ cls: 'codebuddian-input-wrapper' });
+
     this.textareaEl = this.inputWrapperEl.createEl('textarea', {
       cls: 'codebuddian-input',
       attr: {
@@ -160,7 +161,6 @@ export class CodebuddianChatView extends ItemView {
       },
     });
 
-    // Send button (circular, bottom-right)
     this.sendButtonEl = this.inputWrapperEl.createEl('button', {
       cls: 'codebuddian-send-btn',
       attr: { 'aria-label': 'Send message' },
@@ -179,16 +179,7 @@ export class CodebuddianChatView extends ItemView {
     // Subscribe to state changes
     this.stateManager.subscribe(() => this.render());
 
-    // ===== Keyboard shortcuts =====
-    // Shift+Tab → toggle plan mode
-    this.registerDomEvent(this.containerEl, 'keydown', (e: KeyboardEvent) => {
-      if (e.key === 'Tab' && e.shiftKey && !e.isComposing) {
-        e.preventDefault();
-        this.handleTogglePlanMode();
-      }
-    });
-
-    // Escape → stop generation
+    // Keyboard shortcuts
     this.scope.register([], 'Escape', (e: KeyboardEvent) => {
       if (e.isComposing) return false;
       const tab = this.stateManager.getActiveTab();
@@ -209,10 +200,10 @@ export class CodebuddianChatView extends ItemView {
     await this.conversationController.dispose();
   }
 
-  private async handleTogglePlanMode(): Promise<void> {
-    const isPlan = await this.conversationController.togglePlanMode();
-    // Visual feedback handled by render()
-    new Notice(isPlan ? 'Plan mode enabled' : 'Plan mode disabled', 1500);
+  private async handleSetMode(mode: ChatMode): Promise<void> {
+    await this.conversationController.setMode(mode);
+    const label = MODE_CONFIG.find(m => m.id === mode)?.label ?? mode;
+    new Notice(`${label} mode`, 1500);
   }
 
   /** Apply model change to the live SDK session. */
@@ -224,7 +215,7 @@ export class CodebuddianChatView extends ItemView {
         await sdkSession.setModel(model);
       }
     } catch {
-      // Session may not be connected — setting will apply on next start
+      // Session may not be connected
     }
   }
 
@@ -249,7 +240,6 @@ export class CodebuddianChatView extends ItemView {
     svg.setAttribute('viewBox', '0 0 24 24');
     svg.setAttribute('fill', 'none');
 
-    // Simple bot/robot icon for CodeBuddy
     const path = document.createElementNS(ns, 'path');
     path.setAttribute('d', 'M12 2a2 2 0 0 1 2 2v2h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4V4a2 2 0 0 1 2-2zm0 2v2h0V4zm-5 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm10 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2z');
     path.setAttribute('fill', 'currentColor');
@@ -270,7 +260,6 @@ export class CodebuddianChatView extends ItemView {
   private async tryLoadModels(): Promise<void> {
     if (this.modelsLoaded) return;
 
-    // Poll a few times — session may not be ready immediately
     for (let i = 0; i < 10; i++) {
       await new Promise(r => setTimeout(r, 800));
       if (!this.runtime) continue;
@@ -282,7 +271,6 @@ export class CodebuddianChatView extends ItemView {
           setAvailableModels(models.map(m => ({ id: m.id, label: m.name })));
           this.renderModelOptions();
 
-          // Restore active tab's selection if it matches
           const activeTab = this.stateManager.getActiveTab();
           if (activeTab) {
             this.modelSelectEl.value = activeTab.model;
@@ -308,28 +296,26 @@ export class CodebuddianChatView extends ItemView {
       }))
     );
 
-    // Sync header controls with active tab
+    // Sync controls with active tab
     const activeTab = this.stateManager.getActiveTab();
     if (activeTab) {
       this.modelSelectEl.value = activeTab.model;
       this.effortSelectEl.value = activeTab.effort;
 
-      // ---- Plan mode visual feedback ----
-      const isPlan = activeTab.isPlanMode;
-      this.planModeBtnEl.toggleClass('is-active', isPlan);
-      this.inputWrapperEl.toggleClass('codebuddian-plan-mode', isPlan);
-
-      // Show/hide PLAN label
-      const planLabel = this.inputWrapperEl.querySelector('.codebuddian-plan-label');
-      if (planLabel) {
-        (planLabel as HTMLElement).style.display = isPlan ? '' : 'none';
+      // Mode buttons
+      for (const [modeId, btn] of this.modeBtnEls) {
+        btn.toggleClass('is-active', modeId === activeTab.mode);
       }
 
-      // ---- Stop button visibility ----
+      // Apply mode-specific wrapper class
+      this.inputWrapperEl.removeClass('codebuddian-mode-ask', 'codebuddian-mode-plan', 'codebuddian-mode-craft');
+      this.inputWrapperEl.addClass(`codebuddian-mode-${activeTab.mode}`);
+
+      // Stop button visibility
       const isStreaming = activeTab.status === 'streaming';
       this.stopBtnEl.toggleClass('is-visible', isStreaming);
 
-      // ---- Send button state ----
+      // Send button state
       this.sendButtonEl.toggleClass('is-disabled', isStreaming);
     }
 

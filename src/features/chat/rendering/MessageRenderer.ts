@@ -13,14 +13,21 @@ export class MessageRenderer {
     this.app = app;
   }
 
-  renderMessage(message: ChatMessage): HTMLElement {
+  renderMessage(message: ChatMessage): HTMLElement | null {
+    // Skip empty system messages (e.g. SDK init messages with no content)
+    if (message.role === 'system' && (!message.content || message.content.trim().length === 0)) {
+      return null;
+    }
+
     const msgEl = this.containerEl.createDiv({
       cls: `codebuddian-message codebuddian-message-${message.role}`,
     });
 
-    // Header
+    // Header (skip for minimal system messages)
     const headerEl = msgEl.createDiv({ cls: 'codebuddian-message-header' });
-    const roleLabel = message.role === 'user' ? '👤 You' : message.role === 'assistant' ? '🤖 CodeBuddy' : '⚙️ System';
+    const roleLabel = message.role === 'user' ? '👤 You'
+      : message.role === 'assistant' ? '🤖 CodeBuddy'
+      : '💡';
     headerEl.createSpan({ text: roleLabel, cls: 'codebuddian-message-role' });
     headerEl.createSpan({
       text: new Date(message.timestamp).toLocaleTimeString(),
@@ -46,6 +53,9 @@ export class MessageRenderer {
           '',
           this.component,
         );
+      } else if (message.role === 'system') {
+        // System messages: plain text, no markdown
+        contentEl.setText(message.content);
       } else {
         contentEl.setText(message.content);
       }

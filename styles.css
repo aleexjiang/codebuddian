@@ -9,6 +9,8 @@
   --cb-brand-dark: #0284c7;
   --cb-error: #dc3545;
   --cb-success: #22c55e;
+  --cb-plan: #5c948c;
+  --cb-craft: #c084fc;
 
   display: flex;
   flex-direction: column;
@@ -23,7 +25,7 @@
   position: relative;
   display: flex;
   align-items: center;
-  padding: 0 12px 12px 12px;
+  padding: 8px 12px;
   flex-shrink: 0;
   border-bottom: 1px solid var(--background-modifier-border);
 }
@@ -58,7 +60,7 @@
 .codebuddian-header-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   flex-shrink: 0;
   margin-inline-start: auto;
 }
@@ -83,47 +85,6 @@
 .codebuddian-header-btn svg {
   width: 16px;
   height: 16px;
-}
-
-/* ---- Controls (model / effort selectors) ---- */
-.codebuddian-control-group {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.codebuddian-control-label {
-  font-size: 11px;
-  color: var(--text-muted);
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.codebuddian-select {
-  font-size: 12px;
-  padding: 3px 8px;
-  border-radius: 6px;
-  border: 1px solid var(--background-modifier-border);
-  background: var(--background-secondary);
-  color: var(--text-normal);
-  cursor: pointer;
-  outline: none;
-  min-width: 90px;
-  transition: border-color 0.15s ease;
-}
-
-.codebuddian-select:hover {
-  border-color: var(--background-modifier-border-hover);
-}
-
-.codebuddian-select:focus {
-  border-color: var(--cb-brand);
-  box-shadow: 0 0 0 1px rgba(var(--cb-brand-rgb), 0.25);
-}
-
-.codebuddian-select option {
-  background: var(--background-primary);
-  color: var(--text-normal);
 }
 
 /* ---- Tab Bar ---- */
@@ -288,11 +249,15 @@
   border: 1px solid var(--background-modifier-border);
 }
 
+/* System / info messages — subtle, not scary red */
 .codebuddian-message-system {
-  background: var(--background-modifier-error);
-  color: var(--text-error);
+  background: var(--background-primary-alt);
+  color: var(--text-muted);
   font-size: 13px;
   align-self: center;
+  border: 1px solid var(--background-modifier-border);
+  max-width: 90%;
+  text-align: center;
 }
 
 .codebuddian-message-header {
@@ -496,84 +461,119 @@
   text-decoration: line-through;
 }
 
-/* ---- Input Area (Claudian-style bordered box) ---- */
+/* ============================================================
+   Input Area
+   ============================================================ */
+
 .codebuddian-input-container {
   position: relative;
   padding: 8px 12px 12px 12px;
   flex-shrink: 0;
-}
-
-.codebuddian-input-wrapper {
-  position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 100px;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 8px;
-  background: var(--background-primary);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  gap: 6px;
 }
 
-.codebuddian-input-wrapper:focus-within {
-  border-color: var(--cb-brand);
-  box-shadow: 0 0 0 1px rgba(var(--cb-brand-rgb), 0.2);
-}
-
-/* Input toolbar */
-.codebuddian-input-toolbar {
+/* ---- Input toolbar row (model + mode + effort + stop) ---- */
+.codebuddian-input-toolbar-row {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  flex-shrink: 0;
-  padding: 4px 6px 2px 6px;
-  gap: 2px;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 0 2px;
 }
 
-.codebuddian-toolbar-btn {
+.codebuddian-toolbar-group {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  border-radius: 4px;
-  background: transparent;
-  border: none;
+  gap: 4px;
+}
+
+.codebuddian-toolbar-group-icon {
+  display: flex;
+  align-items: center;
   color: var(--text-faint);
-  cursor: pointer;
-  transition: color 0.15s ease, background 0.15s ease;
 }
 
-.codebuddian-toolbar-btn:hover {
+.codebuddian-toolbar-group-icon svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* Selects in toolbar */
+.codebuddian-toolbar-select {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 5px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.codebuddian-toolbar-select:hover {
+  border-color: var(--background-modifier-border-hover);
+}
+
+.codebuddian-toolbar-select:focus {
+  border-color: var(--cb-brand);
+}
+
+/* ---- Mode selector buttons (Ask / Plan / Craft) ---- */
+.codebuddian-mode-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--background-secondary);
+  border-radius: 6px;
+  padding: 2px;
+  border: 1px solid var(--background-modifier-border);
+}
+
+.codebuddian-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.codebuddian-mode-btn:hover {
   color: var(--text-normal);
   background: var(--background-modifier-hover);
 }
 
-.codebuddian-toolbar-btn svg {
-  width: 14px;
-  height: 14px;
+.codebuddian-mode-btn svg {
+  width: 12px;
+  height: 12px;
 }
 
-/* ---- Plan mode button ---- */
-.codebuddian-plan-btn.is-active {
-  color: rgb(92, 148, 140);
-  background: rgba(92, 148, 140, 0.12);
+.codebuddian-mode-btn.is-active {
+  background: var(--background-primary);
+  color: var(--text-normal);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
 }
 
-.codebuddian-plan-btn.is-active:hover {
-  color: rgb(92, 148, 140);
-  background: rgba(92, 148, 140, 0.2);
+/* Mode-specific active colors */
+.codebuddian-mode-btn.is-active[data-mode="ask"] {
+  color: var(--cb-brand);
 }
 
-/* PLAN label next to plan button */
-.codebuddian-plan-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  color: rgb(92, 148, 140);
-  display: none;
-  margin-inline-start: 2px;
-  line-height: 1;
+.codebuddian-mode-btn.is-active[data-mode="plan"] {
+  color: var(--cb-plan);
+}
+
+.codebuddian-mode-btn.is-active[data-mode="craft"] {
+  color: var(--cb-craft);
 }
 
 /* ---- Stop button ---- */
@@ -581,6 +581,7 @@
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
+  margin-inline-start: auto;
 }
 
 .codebuddian-stop-btn.is-visible {
@@ -594,21 +595,40 @@
   background: rgba(220, 53, 69, 0.12);
 }
 
-/* ---- Plan mode input wrapper highlight ---- */
-.codebuddian-input-wrapper.codebuddian-plan-mode {
-  border-color: rgb(92, 148, 140) !important;
-  box-shadow: 0 0 0 1px rgb(92, 148, 140);
+/* ---- Input wrapper (textarea + send) ---- */
+.codebuddian-input-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 80px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: var(--background-primary);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.codebuddian-input-wrapper.codebuddian-plan-mode:focus-within {
-  border-color: rgb(92, 148, 140) !important;
+.codebuddian-input-wrapper:focus-within {
+  border-color: var(--cb-brand);
+  box-shadow: 0 0 0 1px rgba(var(--cb-brand-rgb), 0.2);
+}
+
+/* Mode-specific input wrapper borders */
+.codebuddian-input-wrapper.codebuddian-mode-plan {
+  border-color: var(--cb-plan) !important;
+  box-shadow: 0 0 0 1px var(--cb-plan);
+}
+
+.codebuddian-input-wrapper.codebuddian-mode-plan:focus-within {
   box-shadow: 0 0 0 2px rgba(92, 148, 140, 0.4);
 }
 
-/* ---- Send button disabled state ---- */
-.codebuddian-send-btn.is-disabled {
-  opacity: 0.4;
-  pointer-events: none;
+.codebuddian-input-wrapper.codebuddian-mode-craft {
+  border-color: var(--cb-craft) !important;
+  box-shadow: 0 0 0 1px var(--cb-craft);
+}
+
+.codebuddian-input-wrapper.codebuddian-mode-craft:focus-within {
+  box-shadow: 0 0 0 2px rgba(192, 132, 252, 0.4);
 }
 
 /* Textarea */
@@ -618,10 +638,9 @@
   min-height: 40px;
   max-height: 200px;
   resize: none;
-  padding: 4px 10px 10px 10px;
-  padding-right: 40px;
+  padding: 8px 40px 8px 10px;
   border: none !important;
-  border-radius: 0 0 8px 8px;
+  border-radius: 8px;
   background: transparent !important;
   color: var(--text-normal);
   font-family: inherit;
@@ -675,6 +694,11 @@
 .codebuddian-send-btn svg {
   width: 14px;
   height: 14px;
+}
+
+.codebuddian-send-btn.is-disabled {
+  opacity: 0.4;
+  pointer-events: none;
 }
 
 /* ---- Welcome / Empty State ---- */
