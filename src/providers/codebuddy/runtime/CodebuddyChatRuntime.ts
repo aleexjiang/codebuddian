@@ -38,6 +38,7 @@ import {
 import { CODEBUDDY_PROVIDER } from '../index';
 import type { CodebuddyProviderState } from '../types';
 import { logger } from '../../../utils/logger';
+import { buildChildEnv, findCodebuddyExecutable, findNodeExecutable } from '../env';
 
 // ---------------------------------------------------------------------------
 // SDK PermissionMode → our PermissionMode mapping
@@ -147,16 +148,42 @@ export class CodebuddyChatRuntime implements ChatRuntime {
   // Build SDK SessionOptions from our settings + start opts
   // -------------------------------------------------------------------------
   private buildSessionOptions(opts: StartOptions): SessionOptions {
+    // Resolve a working CLI path:
+    // 1. user-configured cliPath (highest priority)
+    // 2. auto-detected global `codebuddy` (typically authenticated)
+    // 3. let SDK fall back to its bundled CLI
+    let resolvedCliPath: string | undefined = this.settings.cliPath || undefined;
+    if (!resolvedCliPath) {
+      const detected = findCodebuddyExecutable();
+      if (detected) {
+        resolvedCliPath = detected;
+        logger.info(`[Runtime] Auto-detected codebuddy CLI: ${detected}`);
+      }
+    }
+
+    // Capture stderr so we can surface real CLI errors (instead of the generic
+    // "stdout closed unexpectedly").
+    const stderrLines: string[] = [];
+    const stderrCallback = (data: string): void => {
+      stderrLines.push(data);
+      // Keep only last 4KB worth
+      while (stderrLines.join('').length > 4096) stderrLines.shift();
+      logger.debug(`[CLI stderr] ${data.trimEnd()}`);
+    };
+
     const options: SessionOptions = {
       cwd: opts.cwd || this.vaultPath,
       permissionMode: toSDKPermissionMode(opts.permissionMode || this.settings.permissionMode as PermissionMode),
       includePartialMessages: true,
-      pathToCodebuddyCode: this.settings.cliPath || undefined,
+      pathToCodebuddyCode: resolvedCliPath,
       settingSources: ['user'],
+      // Enriched env so the spawned CLI can find node/codebuddy
+      env: buildChildEnv(),
     };
 
-    // Set stderr callback via the query() Options type (SessionOptions doesn't have it)
-    // Instead, we'll rely on the SDK's built-in logging
+    // SessionOptions type doesn't expose `stderr` but the underlying transport
+    // does forward it. Cast to attach the callback for diagnostics.
+    (options as SessionOptions & { stderr?: (data: string) => void }).stderr = stderrCallback;
 
     if (opts.model || this.settings.model) {
       options.model = opts.model || this.settings.model;
@@ -180,11 +207,43 @@ export class CodebuddyChatRuntime implements ChatRuntime {
         : { append: this.settings.appendSystemPrompt };
     }
 
-    if (opts.addDirs && opts.addDirs.length > 0) {
-      // Handled via additionalDirectories in query() or setConfig
-    }
+    // Stash for diagnostics on connection failure
+    this._lastStderrBuffer = stderrLines;
 
     return options;
+  }
+
+  /** Last captured stderr lines (for failure diagnostics). */
+  private _lastStderrBuffer: string[] = [];
+
+  /** Get a friendly diagnostic string for a connection failure. */
+  getConnectionFailureDiagnostic(originalError: Error): string {
+    const stderr = this._lastStderrBuffer.join('').trim();
+    const node = findNodeExecutable();
+    const cli = findCodebuddyExecutable();
+
+    const lines: string[] = [];
+    lines.push(`原因: ${originalError.message}`);
+    if (stderr) {
+      lines.push('');
+      lines.push('CLI stderr:');
+      lines.push(stderr.slice(-1000));
+    }
+    lines.push('');
+    lines.push('环境检测:');
+    lines.push(`  node:      ${node ?? '❌ 未找到'}`);
+    lines.push(`  codebuddy: ${cli ?? '❌ 未找到（请运行 npm i -g @tencent-ai/codebuddy-code）'}`);
+
+    if (!node) {
+      lines.push('');
+      lines.push('💡 Obsidian 没继承 shell PATH。请确保 Node.js 已安装到 /usr/local/bin、Homebrew 或 nvm。');
+    }
+    if (!cli) {
+      lines.push('');
+      lines.push('💡 找不到 `codebuddy` 命令。安装：npm install -g @tencent-ai/codebuddy-code');
+    }
+
+    return lines.join('\n');
   }
 
   // -------------------------------------------------------------------------

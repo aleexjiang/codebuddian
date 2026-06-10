@@ -62,13 +62,29 @@ export class ConversationController {
         this.setupEventListeners(tab.id);
       } catch (err) {
         this.stateManager.updateTab(tab.id, { status: 'error' });
+
+        // Get rich diagnostic from runtime if available
+        let diagnostic = err instanceof Error ? err.message : String(err);
+        const runtime = this.runtime as ChatRuntime & {
+          getConnectionFailureDiagnostic?(e: Error): string;
+        };
+        if (runtime.getConnectionFailureDiagnostic && err instanceof Error) {
+          try {
+            diagnostic = runtime.getConnectionFailureDiagnostic(err);
+          } catch {
+            // fallback to original
+          }
+        }
+
         const errorMsg: ChatMessage = {
           id: `msg-${Date.now()}`,
           role: 'system',
-          content: `❌ Failed to start session: ${err instanceof Error ? err.message : String(err)}`,
+          content: `❌ 启动会话失败\n\n${diagnostic}`,
           timestamp: Date.now(),
         };
         this.stateManager.addMessage(tab.id, errorMsg);
+
+        // Also remove the streaming placeholder so user sees clean state
         return;
       }
     }

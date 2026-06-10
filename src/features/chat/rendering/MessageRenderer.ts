@@ -54,8 +54,15 @@ export class MessageRenderer {
           this.component,
         );
       } else if (message.role === 'system') {
-        // System messages: plain text, no markdown
-        contentEl.setText(message.content);
+        // System messages: preserve newlines, render as preformatted text for
+        // multi-line diagnostics (e.g. connection failure with stderr dump)
+        const isMultiline = message.content.includes('\n');
+        if (isMultiline) {
+          const pre = contentEl.createEl('pre', { cls: 'codebuddian-message-system-pre' });
+          pre.createEl('code', { text: message.content });
+        } else {
+          contentEl.setText(message.content);
+        }
       } else {
         contentEl.setText(message.content);
       }
@@ -82,8 +89,45 @@ export class MessageRenderer {
 
   renderMessages(messages: ChatMessage[]): void {
     this.containerEl.empty();
+
+    // Empty state: show welcome when no messages
+    if (messages.length === 0) {
+      this.renderWelcome();
+      return;
+    }
+
     for (const message of messages) {
       this.renderMessage(message);
     }
+  }
+
+  private renderWelcome(): void {
+    const welcome = this.containerEl.createDiv({ cls: 'codebuddian-welcome' });
+
+    // Logo
+    const logoWrap = welcome.createDiv({ cls: 'codebuddian-welcome-logo' });
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('width', '48');
+    svg.setAttribute('height', '48');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    const path = document.createElementNS(ns, 'path');
+    path.setAttribute('d', 'M12 2a2 2 0 0 1 2 2v2h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4V4a2 2 0 0 1 2-2zm-5 8a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm10 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2z');
+    path.setAttribute('fill', 'currentColor');
+    svg.appendChild(path);
+    logoWrap.appendChild(svg);
+
+    // Greeting
+    welcome.createDiv({
+      cls: 'codebuddian-welcome-greeting',
+      text: 'How can I help you today?',
+    });
+
+    // Tips
+    const tipsEl = welcome.createDiv({ cls: 'codebuddian-welcome-tips' });
+    tipsEl.createDiv({ text: '💡 Use @ to mention files, # for instructions' });
+    tipsEl.createDiv({ text: '⌘ Press Enter to send, Shift+Enter for newline' });
+    tipsEl.createDiv({ text: '🛑 Press Esc to stop generation' });
   }
 }

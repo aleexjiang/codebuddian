@@ -2984,8 +2984,8 @@ var require_parseUtil = __commonJS({
     var errors_js_1 = require_errors2();
     var en_js_1 = __importDefault(require_en());
     var makeIssue = (params) => {
-      const { data, path, errorMaps, issueData } = params;
-      const fullPath = [...path, ...issueData.path || []];
+      const { data, path: path2, errorMaps, issueData } = params;
+      const fullPath = [...path2, ...issueData.path || []];
       const fullIssue = {
         ...issueData,
         path: fullPath
@@ -3139,11 +3139,11 @@ var require_types = __commonJS({
     var parseUtil_js_1 = require_parseUtil();
     var util_js_1 = require_util();
     var ParseInputLazyPath = class {
-      constructor(parent, value, path, key) {
+      constructor(parent, value, path2, key) {
         this._cachedPath = [];
         this.parent = parent;
         this.data = value;
-        this._path = path;
+        this._path = path2;
         this._key = key;
       }
       get path() {
@@ -6988,10 +6988,10 @@ var require_util2 = __commonJS({
     function cloneDef(schema) {
       return mergeDefs(schema._zod.def);
     }
-    function getElementAtPath(obj, path) {
-      if (!path)
+    function getElementAtPath(obj, path2) {
+      if (!path2)
         return obj;
-      return path.reduce((acc, key) => acc?.[key], obj);
+      return path2.reduce((acc, key) => acc?.[key], obj);
     }
     function promiseAllObject(promisesObj) {
       const keys = Object.keys(promisesObj);
@@ -7401,11 +7401,11 @@ var require_util2 = __commonJS({
       }
       return false;
     }
-    function prefixIssues(path, issues) {
+    function prefixIssues(path2, issues) {
       return issues.map((iss) => {
         var _a;
         (_a = iss).path ?? (_a.path = []);
-        iss.path.unshift(path);
+        iss.path.unshift(path2);
         return iss;
       });
     }
@@ -7594,16 +7594,16 @@ var require_errors3 = __commonJS({
     }
     function formatError(error, mapper = (issue) => issue.message) {
       const fieldErrors = { _errors: [] };
-      const processError = (error2, path = []) => {
+      const processError = (error2, path2 = []) => {
         for (const issue of error2.issues) {
           if (issue.code === "invalid_union" && issue.errors.length) {
-            issue.errors.map((issues) => processError({ issues }, [...path, ...issue.path]));
+            issue.errors.map((issues) => processError({ issues }, [...path2, ...issue.path]));
           } else if (issue.code === "invalid_key") {
-            processError({ issues: issue.issues }, [...path, ...issue.path]);
+            processError({ issues: issue.issues }, [...path2, ...issue.path]);
           } else if (issue.code === "invalid_element") {
-            processError({ issues: issue.issues }, [...path, ...issue.path]);
+            processError({ issues: issue.issues }, [...path2, ...issue.path]);
           } else {
-            const fullpath = [...path, ...issue.path];
+            const fullpath = [...path2, ...issue.path];
             if (fullpath.length === 0) {
               fieldErrors._errors.push(mapper(issue));
             } else {
@@ -7630,17 +7630,17 @@ var require_errors3 = __commonJS({
     }
     function treeifyError(error, mapper = (issue) => issue.message) {
       const result = { errors: [] };
-      const processError = (error2, path = []) => {
+      const processError = (error2, path2 = []) => {
         var _a, _b;
         for (const issue of error2.issues) {
           if (issue.code === "invalid_union" && issue.errors.length) {
-            issue.errors.map((issues) => processError({ issues }, [...path, ...issue.path]));
+            issue.errors.map((issues) => processError({ issues }, [...path2, ...issue.path]));
           } else if (issue.code === "invalid_key") {
-            processError({ issues: issue.issues }, [...path, ...issue.path]);
+            processError({ issues: issue.issues }, [...path2, ...issue.path]);
           } else if (issue.code === "invalid_element") {
-            processError({ issues: issue.issues }, [...path, ...issue.path]);
+            processError({ issues: issue.issues }, [...path2, ...issue.path]);
           } else {
-            const fullpath = [...path, ...issue.path];
+            const fullpath = [...path2, ...issue.path];
             if (fullpath.length === 0) {
               result.errors.push(mapper(issue));
               continue;
@@ -7672,8 +7672,8 @@ var require_errors3 = __commonJS({
     }
     function toDotPath(_path) {
       const segs = [];
-      const path = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
-      for (const seg of path) {
+      const path2 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
+      for (const seg of path2) {
         if (typeof seg === "number")
           segs.push(`[${seg}]`);
         else if (typeof seg === "symbol")
@@ -24664,13 +24664,13 @@ var require_from_json_schema = __commonJS({
       if (!ref.startsWith("#")) {
         throw new Error("External $ref is not supported, only local refs (#/...) are allowed");
       }
-      const path = ref.slice(1).split("/").filter(Boolean);
-      if (path.length === 0) {
+      const path2 = ref.slice(1).split("/").filter(Boolean);
+      if (path2.length === 0) {
         return ctx.rootSchema;
       }
       const defsKey = ctx.version === "draft-2020-12" ? "$defs" : "definitions";
-      if (path[0] === defsKey) {
-        const key = path[1];
+      if (path2[0] === defsKey) {
+        const key = path2[1];
         if (!key || !ctx.defs[key]) {
           throw new Error(`Reference not found: ${ref}`);
         }
@@ -32886,8 +32886,8 @@ var require_utils2 = __commonJS({
       }
       return ind;
     }
-    function removeDotSegments(path) {
-      let input = path;
+    function removeDotSegments(path2) {
+      let input = path2;
       const output = [];
       let nextSlash = -1;
       let len = 0;
@@ -33139,8 +33139,8 @@ var require_schemes = __commonJS({
         wsComponent.secure = void 0;
       }
       if (wsComponent.resourceName) {
-        const [path, query3] = wsComponent.resourceName.split("?");
-        wsComponent.path = path && path !== "/" ? path : void 0;
+        const [path2, query3] = wsComponent.resourceName.split("?");
+        wsComponent.path = path2 && path2 !== "/" ? path2 : void 0;
         wsComponent.query = query3;
         wsComponent.resourceName = void 0;
       }
@@ -42228,12 +42228,12 @@ var require_dist = __commonJS({
         throw new Error(`Unknown format "${name}"`);
       return f;
     };
-    function addFormats(ajv, list, fs, exportName) {
+    function addFormats(ajv, list, fs2, exportName) {
       var _a;
       var _b;
       (_a = (_b = ajv.opts.code).formats) !== null && _a !== void 0 ? _a : _b.formats = (0, codegen_1._)`require("ajv-formats/dist/formats").${exportName}`;
       for (const f of list)
-        ajv.addFormat(f, fs[f]);
+        ajv.addFormat(f, fs2[f]);
     }
     module2.exports = exports = formatsPlugin;
     Object.defineProperty(exports, "__esModule", { value: true });
@@ -44341,32 +44341,32 @@ var require_plugin = __commonJS({
     };
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.disablePlugin = exports.enablePlugin = exports.installPlugin = exports.removeMarketplace = exports.installMarketplace = void 0;
-    var fs = __importStar(require("fs"));
+    var fs2 = __importStar(require("fs"));
     var os = __importStar(require("os"));
-    var path = __importStar(require("path"));
+    var path2 = __importStar(require("path"));
     var USER_DATA_DIR_NAME = ".codebuddy";
     function getCodebuddyDir() {
-      return path.join(os.homedir(), USER_DATA_DIR_NAME);
+      return path2.join(os.homedir(), USER_DATA_DIR_NAME);
     }
     function getSettingsPath() {
-      return path.join(getCodebuddyDir(), "settings.json");
+      return path2.join(getCodebuddyDir(), "settings.json");
     }
     function getKnownMarketplacesPath() {
-      return path.join(getCodebuddyDir(), "plugins", "known_marketplaces.json");
+      return path2.join(getCodebuddyDir(), "plugins", "known_marketplaces.json");
     }
     function ensureSettingsDir() {
-      const settingsDir = path.dirname(getSettingsPath());
-      if (!fs.existsSync(settingsDir)) {
-        fs.mkdirSync(settingsDir, { recursive: true });
+      const settingsDir = path2.dirname(getSettingsPath());
+      if (!fs2.existsSync(settingsDir)) {
+        fs2.mkdirSync(settingsDir, { recursive: true });
       }
     }
     function readSettings() {
       const settingsPath = getSettingsPath();
-      if (!fs.existsSync(settingsPath)) {
+      if (!fs2.existsSync(settingsPath)) {
         return {};
       }
       try {
-        const content = fs.readFileSync(settingsPath, "utf-8");
+        const content = fs2.readFileSync(settingsPath, "utf-8");
         return JSON.parse(content);
       } catch (_a) {
         return {};
@@ -44375,15 +44375,15 @@ var require_plugin = __commonJS({
     function writeSettings(settings) {
       ensureSettingsDir();
       const settingsPath = getSettingsPath();
-      fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), "utf-8");
+      fs2.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), "utf-8");
     }
     function readKnownMarketplaces() {
       const filePath = getKnownMarketplacesPath();
-      if (!fs.existsSync(filePath)) {
+      if (!fs2.existsSync(filePath)) {
         return {};
       }
       try {
-        const content = fs.readFileSync(filePath, "utf-8");
+        const content = fs2.readFileSync(filePath, "utf-8");
         return JSON.parse(content);
       } catch (_a) {
         return {};
@@ -44391,11 +44391,11 @@ var require_plugin = __commonJS({
     }
     function writeKnownMarketplaces(data) {
       const filePath = getKnownMarketplacesPath();
-      const dir = path.dirname(filePath);
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
+      const dir = path2.dirname(filePath);
+      if (!fs2.existsSync(dir)) {
+        fs2.mkdirSync(dir, { recursive: true });
       }
-      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
+      fs2.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
     }
     function getPluginId(name, marketplace) {
       return `${name}@${marketplace}`;
@@ -45153,7 +45153,13 @@ var MessageRenderer = class {
           this.component
         );
       } else if (message.role === "system") {
-        contentEl.setText(message.content);
+        const isMultiline = message.content.includes("\n");
+        if (isMultiline) {
+          const pre = contentEl.createEl("pre", { cls: "codebuddian-message-system-pre" });
+          pre.createEl("code", { text: message.content });
+        } else {
+          contentEl.setText(message.content);
+        }
       } else {
         contentEl.setText(message.content);
       }
@@ -45174,9 +45180,36 @@ var MessageRenderer = class {
   }
   renderMessages(messages) {
     this.containerEl.empty();
+    if (messages.length === 0) {
+      this.renderWelcome();
+      return;
+    }
     for (const message of messages) {
       this.renderMessage(message);
     }
+  }
+  renderWelcome() {
+    const welcome = this.containerEl.createDiv({ cls: "codebuddian-welcome" });
+    const logoWrap = welcome.createDiv({ cls: "codebuddian-welcome-logo" });
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("width", "48");
+    svg.setAttribute("height", "48");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("fill", "none");
+    const path2 = document.createElementNS(ns, "path");
+    path2.setAttribute("d", "M12 2a2 2 0 0 1 2 2v2h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4V4a2 2 0 0 1 2-2zm-5 8a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm10 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2z");
+    path2.setAttribute("fill", "currentColor");
+    svg.appendChild(path2);
+    logoWrap.appendChild(svg);
+    welcome.createDiv({
+      cls: "codebuddian-welcome-greeting",
+      text: "How can I help you today?"
+    });
+    const tipsEl = welcome.createDiv({ cls: "codebuddian-welcome-tips" });
+    tipsEl.createDiv({ text: "\u{1F4A1} Use @ to mention files, # for instructions" });
+    tipsEl.createDiv({ text: "\u2318 Press Enter to send, Shift+Enter for newline" });
+    tipsEl.createDiv({ text: "\u{1F6D1} Press Esc to stop generation" });
   }
 };
 
@@ -45345,10 +45378,20 @@ var ConversationController = class {
         this.setupEventListeners(tab.id);
       } catch (err) {
         this.stateManager.updateTab(tab.id, { status: "error" });
+        let diagnostic = err instanceof Error ? err.message : String(err);
+        const runtime = this.runtime;
+        if (runtime.getConnectionFailureDiagnostic && err instanceof Error) {
+          try {
+            diagnostic = runtime.getConnectionFailureDiagnostic(err);
+          } catch {
+          }
+        }
         const errorMsg = {
           id: `msg-${Date.now()}`,
           role: "system",
-          content: `\u274C Failed to start session: ${err instanceof Error ? err.message : String(err)}`,
+          content: `\u274C \u542F\u52A8\u4F1A\u8BDD\u5931\u8D25
+
+${diagnostic}`,
           timestamp: Date.now()
         };
         this.stateManager.addMessage(tab.id, errorMsg);
@@ -45674,10 +45717,10 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
     svg.setAttribute("height", "18");
     svg.setAttribute("viewBox", "0 0 24 24");
     svg.setAttribute("fill", "none");
-    const path = document.createElementNS(ns, "path");
-    path.setAttribute("d", "M12 2a2 2 0 0 1 2 2v2h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4V4a2 2 0 0 1 2-2zm0 2v2h0V4zm-5 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm10 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2z");
-    path.setAttribute("fill", "currentColor");
-    svg.appendChild(path);
+    const path2 = document.createElementNS(ns, "path");
+    path2.setAttribute("d", "M12 2a2 2 0 0 1 2 2v2h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4V4a2 2 0 0 1 2-2zm0 2v2h0V4zm-5 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm10 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2z");
+    path2.setAttribute("fill", "currentColor");
+    svg.appendChild(path2);
     return svg;
   }
   renderModelOptions() {
@@ -45761,10 +45804,10 @@ var CliDetector = class {
     if (this.cachedPath) return this.cachedPath;
     for (const name of CLI_NAMES) {
       try {
-        const path = await this.which(name);
-        if (path) {
-          this.cachedPath = path;
-          return path;
+        const path2 = await this.which(name);
+        if (path2) {
+          this.cachedPath = path2;
+          return path2;
         }
       } catch {
       }
@@ -45792,17 +45835,17 @@ var CliDetector = class {
         if (err) {
           resolve(null);
         } else {
-          const path = stdout.trim().split("\n")[0].trim();
-          resolve(path || null);
+          const path2 = stdout.trim().split("\n")[0].trim();
+          resolve(path2 || null);
         }
       });
     });
   }
   async getVersion(cliPath) {
-    const path = cliPath || this.cachedPath;
-    if (!path) return "unknown";
+    const path2 = cliPath || this.cachedPath;
+    if (!path2) return "unknown";
     return new Promise((resolve) => {
-      (0, import_child_process.execFile)(path, ["--version"], (err, stdout) => {
+      (0, import_child_process.execFile)(path2, ["--version"], (err, stdout) => {
         if (err) resolve("unknown");
         else resolve(stdout.trim());
       });
@@ -45830,12 +45873,12 @@ var CodebuddianSettingsTab = class extends import_obsidian3.PluginSettingTab {
       this.plugin.settings.cliPath = value;
       await this.plugin.saveSettings();
     })).addButton((btn) => btn.setButtonText("Detect").onClick(async () => {
-      const path = await this.cliDetector.detect();
-      if (path) {
-        this.plugin.settings.cliPath = path;
+      const path2 = await this.cliDetector.detect();
+      if (path2) {
+        this.plugin.settings.cliPath = path2;
         await this.plugin.saveSettings();
         this.display();
-        new import_obsidian3.Notice(`Found: ${path}`);
+        new import_obsidian3.Notice(`Found: ${path2}`);
       } else {
         new import_obsidian3.Notice("CodeBuddy CLI not found");
       }
@@ -46040,6 +46083,140 @@ var CODEBUDDY_PROVIDER = {
   }
 };
 
+// src/providers/codebuddy/env.ts
+var fs = __toESM(require("fs"));
+var path = __toESM(require("path"));
+var isWindows = process.platform === "win32";
+var PATH_SEPARATOR = isWindows ? ";" : ":";
+var NODE_EXECUTABLE = isWindows ? "node.exe" : "node";
+var CODEBUDDY_BINARY = isWindows ? "codebuddy.cmd" : "codebuddy";
+var ENV_PASSTHROUGH = [
+  "PATH",
+  "HOME",
+  "USERPROFILE",
+  "HTTP_PROXY",
+  "HTTPS_PROXY",
+  "NO_PROXY",
+  "http_proxy",
+  "https_proxy",
+  "no_proxy",
+  "NODE_EXTRA_CA_CERTS",
+  "NODE_OPTIONS",
+  "LANG",
+  "TERM",
+  "SHELL",
+  "TMPDIR",
+  "TEMP",
+  "TMP"
+];
+function getHomeDir() {
+  return process.env.HOME || process.env.USERPROFILE || "";
+}
+function getExtraBinaryPaths() {
+  const home = getHomeDir();
+  const paths = [];
+  if (isWindows) {
+    const localAppData = process.env.LOCALAPPDATA;
+    const appData = process.env.APPDATA;
+    const programFiles = process.env.ProgramFiles || "C:\\Program Files";
+    if (appData) paths.push(path.join(appData, "npm"));
+    if (localAppData) {
+      paths.push(path.join(localAppData, "Programs", "nodejs"));
+      paths.push(path.join(localAppData, "Programs", "node"));
+      paths.push(path.join(localAppData, "fnm"));
+    }
+    paths.push(path.join(programFiles, "nodejs"));
+    if (home) {
+      paths.push(path.join(home, ".local", "bin"));
+      paths.push(path.join(home, ".bun", "bin"));
+      paths.push(path.join(home, ".volta", "bin"));
+    }
+    return paths;
+  }
+  paths.push("/usr/local/bin", "/opt/homebrew/bin", "/usr/bin", "/bin");
+  if (home) {
+    paths.push(path.join(home, ".local", "bin"));
+    paths.push(path.join(home, ".bun", "bin"));
+    paths.push(path.join(home, ".volta", "bin"));
+    paths.push(path.join(home, ".asdf", "shims"));
+    try {
+      const nvmDir = path.join(home, ".nvm", "versions", "node");
+      if (fs.existsSync(nvmDir)) {
+        const versions = fs.readdirSync(nvmDir);
+        for (const v of versions) {
+          const binPath = path.join(nvmDir, v, "bin");
+          if (fs.existsSync(binPath)) {
+            paths.unshift(binPath);
+          }
+        }
+      }
+    } catch {
+    }
+    const nvmBin = process.env.NVM_BIN;
+    if (nvmBin) paths.push(nvmBin);
+  }
+  return paths;
+}
+function findInPaths(name, dirs) {
+  for (const dir of dirs) {
+    if (!dir) continue;
+    try {
+      const full = path.join(dir, name);
+      if (fs.existsSync(full)) {
+        const stat = fs.statSync(full);
+        if (stat.isFile()) return full;
+        if (stat.isSymbolicLink()) {
+          try {
+            const real = fs.realpathSync(full);
+            if (fs.statSync(real).isFile()) return full;
+          } catch {
+          }
+        }
+      }
+    } catch {
+    }
+  }
+  return null;
+}
+function findNodeExecutable() {
+  const allDirs = [...getExtraBinaryPaths(), ...parsePath(process.env.PATH || "")];
+  return findInPaths(NODE_EXECUTABLE, allDirs);
+}
+function findCodebuddyExecutable() {
+  const allDirs = [...getExtraBinaryPaths(), ...parsePath(process.env.PATH || "")];
+  return findInPaths(CODEBUDDY_BINARY, allDirs);
+}
+function parsePath(pathStr) {
+  return pathStr.split(PATH_SEPARATOR).filter((p) => p.length > 0);
+}
+function getEnhancedPath() {
+  const extraPaths = getExtraBinaryPaths();
+  const currentPath = process.env.PATH || "";
+  const segments = [...extraPaths, ...parsePath(currentPath)];
+  const seen = /* @__PURE__ */ new Set();
+  const unique = segments.filter((p) => {
+    const norm = isWindows ? p.toLowerCase() : p;
+    if (seen.has(norm)) return false;
+    seen.add(norm);
+    return true;
+  });
+  return unique.join(PATH_SEPARATOR);
+}
+function buildChildEnv() {
+  const env = {};
+  for (const key of ENV_PASSTHROUGH) {
+    const val = process.env[key];
+    if (val !== void 0) env[key] = val;
+  }
+  for (const [key, val] of Object.entries(process.env)) {
+    if ((key.startsWith("CODEBUDDY_") || key.startsWith("WORKBUDDY_")) && val !== void 0) {
+      env[key] = val;
+    }
+  }
+  env.PATH = getEnhancedPath();
+  return env;
+}
+
 // src/providers/codebuddy/runtime/CodebuddyChatRuntime.ts
 function toSDKPermissionMode(mode) {
   switch (mode) {
@@ -46131,13 +46308,30 @@ var CodebuddyChatRuntime = class {
   // Build SDK SessionOptions from our settings + start opts
   // -------------------------------------------------------------------------
   buildSessionOptions(opts) {
+    let resolvedCliPath = this.settings.cliPath || void 0;
+    if (!resolvedCliPath) {
+      const detected = findCodebuddyExecutable();
+      if (detected) {
+        resolvedCliPath = detected;
+        logger.info(`[Runtime] Auto-detected codebuddy CLI: ${detected}`);
+      }
+    }
+    const stderrLines = [];
+    const stderrCallback = (data) => {
+      stderrLines.push(data);
+      while (stderrLines.join("").length > 4096) stderrLines.shift();
+      logger.debug(`[CLI stderr] ${data.trimEnd()}`);
+    };
     const options = {
       cwd: opts.cwd || this.vaultPath,
       permissionMode: toSDKPermissionMode(opts.permissionMode || this.settings.permissionMode),
       includePartialMessages: true,
-      pathToCodebuddyCode: this.settings.cliPath || void 0,
-      settingSources: ["user"]
+      pathToCodebuddyCode: resolvedCliPath,
+      settingSources: ["user"],
+      // Enriched env so the spawned CLI can find node/codebuddy
+      env: buildChildEnv()
     };
+    options.stderr = stderrCallback;
     if (opts.model || this.settings.model) {
       options.model = opts.model || this.settings.model;
     }
@@ -46154,9 +46348,36 @@ var CodebuddyChatRuntime = class {
       options.systemPrompt = options.systemPrompt ? { append: `${options.systemPrompt.append}
 ${this.settings.appendSystemPrompt}` } : { append: this.settings.appendSystemPrompt };
     }
-    if (opts.addDirs && opts.addDirs.length > 0) {
-    }
+    this._lastStderrBuffer = stderrLines;
     return options;
+  }
+  /** Last captured stderr lines (for failure diagnostics). */
+  _lastStderrBuffer = [];
+  /** Get a friendly diagnostic string for a connection failure. */
+  getConnectionFailureDiagnostic(originalError) {
+    const stderr = this._lastStderrBuffer.join("").trim();
+    const node = findNodeExecutable();
+    const cli = findCodebuddyExecutable();
+    const lines = [];
+    lines.push(`\u539F\u56E0: ${originalError.message}`);
+    if (stderr) {
+      lines.push("");
+      lines.push("CLI stderr:");
+      lines.push(stderr.slice(-1e3));
+    }
+    lines.push("");
+    lines.push("\u73AF\u5883\u68C0\u6D4B:");
+    lines.push(`  node:      ${node ?? "\u274C \u672A\u627E\u5230"}`);
+    lines.push(`  codebuddy: ${cli ?? "\u274C \u672A\u627E\u5230\uFF08\u8BF7\u8FD0\u884C npm i -g @tencent-ai/codebuddy-code\uFF09"}`);
+    if (!node) {
+      lines.push("");
+      lines.push("\u{1F4A1} Obsidian \u6CA1\u7EE7\u627F shell PATH\u3002\u8BF7\u786E\u4FDD Node.js \u5DF2\u5B89\u88C5\u5230 /usr/local/bin\u3001Homebrew \u6216 nvm\u3002");
+    }
+    if (!cli) {
+      lines.push("");
+      lines.push("\u{1F4A1} \u627E\u4E0D\u5230 `codebuddy` \u547D\u4EE4\u3002\u5B89\u88C5\uFF1Anpm install -g @tencent-ai/codebuddy-code");
+    }
+    return lines.join("\n");
   }
   // -------------------------------------------------------------------------
   // canUseTool — delegate to ApprovalManager
