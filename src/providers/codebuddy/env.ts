@@ -127,6 +127,23 @@ export function findCodebuddyExecutable(): string | null {
   return findInPaths(CODEBUDDY_BINARY, allDirs);
 }
 
+/**
+ * Resolve a CLI path to its real (non-symlink) location.
+ *
+ * CRITICAL: The SDK assumes layout `<dir>/bin/codebuddy` <-> `<dir>/dist/codebuddy-headless.js`.
+ * With nvm, `~/.nvm/.../bin/codebuddy` is a symlink to
+ * `../lib/node_modules/@tencent-ai/codebuddy-code/bin/codebuddy`. Without realpath,
+ * the SDK looks for headless.js in `~/.nvm/.../dist/` which doesn't exist, and the
+ * spawned process exits silently with no stderr.
+ */
+export function realCliPath(cliPath: string): string {
+  try {
+    return fs.realpathSync(cliPath);
+  } catch {
+    return cliPath;
+  }
+}
+
 function parsePath(pathStr: string): string[] {
   return pathStr.split(PATH_SEPARATOR).filter(p => p.length > 0);
 }

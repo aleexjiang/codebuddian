@@ -46186,6 +46186,13 @@ function findCodebuddyExecutable() {
   const allDirs = [...getExtraBinaryPaths(), ...parsePath(process.env.PATH || "")];
   return findInPaths(CODEBUDDY_BINARY, allDirs);
 }
+function realCliPath(cliPath) {
+  try {
+    return fs.realpathSync(cliPath);
+  } catch {
+    return cliPath;
+  }
+}
 function parsePath(pathStr) {
   return pathStr.split(PATH_SEPARATOR).filter((p) => p.length > 0);
 }
@@ -46316,6 +46323,14 @@ var CodebuddyChatRuntime = class {
         logger.info(`[Runtime] Auto-detected codebuddy CLI: ${detected}`);
       }
     }
+    if (resolvedCliPath) {
+      const real = realCliPath(resolvedCliPath);
+      if (real !== resolvedCliPath) {
+        logger.info(`[Runtime] Resolved CLI symlink: ${resolvedCliPath} -> ${real}`);
+        resolvedCliPath = real;
+      }
+    }
+    const nodePath = findNodeExecutable();
     const stderrLines = [];
     const stderrCallback = (data) => {
       stderrLines.push(data);
@@ -46331,6 +46346,10 @@ var CodebuddyChatRuntime = class {
       // Enriched env so the spawned CLI can find node/codebuddy
       env: buildChildEnv()
     };
+    if (nodePath) {
+      options.executable = nodePath;
+      logger.info(`[Runtime] Using node executable: ${nodePath}`);
+    }
     options.stderr = stderrCallback;
     if (opts.model || this.settings.model) {
       options.model = opts.model || this.settings.model;
@@ -46357,7 +46376,8 @@ ${this.settings.appendSystemPrompt}` } : { append: this.settings.appendSystemPro
   getConnectionFailureDiagnostic(originalError) {
     const stderr = this._lastStderrBuffer.join("").trim();
     const node = findNodeExecutable();
-    const cli = findCodebuddyExecutable();
+    const cliRaw = findCodebuddyExecutable();
+    const cliReal = cliRaw ? realCliPath(cliRaw) : null;
     const lines = [];
     lines.push(`\u539F\u56E0: ${originalError.message}`);
     if (stderr) {
@@ -46367,15 +46387,25 @@ ${this.settings.appendSystemPrompt}` } : { append: this.settings.appendSystemPro
     }
     lines.push("");
     lines.push("\u73AF\u5883\u68C0\u6D4B:");
-    lines.push(`  node:      ${node ?? "\u274C \u672A\u627E\u5230"}`);
-    lines.push(`  codebuddy: ${cli ?? "\u274C \u672A\u627E\u5230\uFF08\u8BF7\u8FD0\u884C npm i -g @tencent-ai/codebuddy-code\uFF09"}`);
+    lines.push(`  node:           ${node ?? "\u274C \u672A\u627E\u5230"}`);
+    lines.push(`  codebuddy:      ${cliRaw ?? "\u274C \u672A\u627E\u5230"}`);
+    if (cliReal && cliReal !== cliRaw) {
+      lines.push(`  codebuddy(real): ${cliReal}`);
+    }
     if (!node) {
       lines.push("");
-      lines.push("\u{1F4A1} Obsidian \u6CA1\u7EE7\u627F shell PATH\u3002\u8BF7\u786E\u4FDD Node.js \u5DF2\u5B89\u88C5\u5230 /usr/local/bin\u3001Homebrew \u6216 nvm\u3002");
+      lines.push("\u{1F4A1} \u627E\u4E0D\u5230 node\u3002\u8BF7\u786E\u4FDD Node.js \u5DF2\u5B89\u88C5\u5230 /usr/local/bin\u3001Homebrew \u6216 nvm\u3002");
     }
-    if (!cli) {
+    if (!cliRaw) {
       lines.push("");
       lines.push("\u{1F4A1} \u627E\u4E0D\u5230 `codebuddy` \u547D\u4EE4\u3002\u5B89\u88C5\uFF1Anpm install -g @tencent-ai/codebuddy-code");
+    }
+    if (cliRaw && !stderr) {
+      lines.push("");
+      lines.push("\u{1F4A1} CLI \u5B50\u8FDB\u7A0B\u7ACB\u5373\u9000\u51FA\u4E14\u65E0 stderr \u8F93\u51FA\u3002\u53EF\u80FD\u539F\u56E0\uFF1A");
+      lines.push("   1. CLI \u672A\u8BA4\u8BC1 \u2014 \u7EC8\u7AEF\u8FD0\u884C `codebuddy` \u5B8C\u6210\u9996\u6B21\u8BA4\u8BC1");
+      lines.push("   2. CLI \u7248\u672C\u4E0E SDK \u4E0D\u517C\u5BB9 \u2014 \u5347\u7EA7 codebuddy-code");
+      lines.push("   3. headless.js \u8DEF\u5F84\u63A8\u5BFC\u9519\u8BEF \u2014 \u5DF2\u5C1D\u8BD5 realpath \u89E3\u6790");
     }
     return lines.join("\n");
   }

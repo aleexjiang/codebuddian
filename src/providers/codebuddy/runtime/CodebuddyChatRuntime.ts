@@ -38,7 +38,7 @@ import {
 import { CODEBUDDY_PROVIDER } from '../index';
 import type { CodebuddyProviderState } from '../types';
 import { logger } from '../../../utils/logger';
-import { buildChildEnv, findCodebuddyExecutable, findNodeExecutable } from '../env';
+import { buildChildEnv, findCodebuddyExecutable, findNodeExecutable, realCliPath } from '../env';
 
 // ---------------------------------------------------------------------------
 // SDK PermissionMode → our PermissionMode mapping
@@ -161,6 +161,23 @@ export class CodebuddyChatRuntime implements ChatRuntime {
       }
     }
 
+    // CRITICAL: Resolve the CLI path through realpath. The SDK derives the
+    // headless JS path by replacing `bin/codebuddy` with `dist/codebuddy-headless.js`
+    // in the same directory. With nvm, the binary is a symlink to
+    // `lib/node_modules/@tencent-ai/codebuddy-code/bin/codebuddy`, and the
+    // headless.js lives next to that real path — NOT next to the symlink.
+    if (resolvedCliPath) {
+      const real = realCliPath(resolvedCliPath);
+      if (real !== resolvedCliPath) {
+        logger.info(`[Runtime] Resolved CLI symlink: ${resolvedCliPath} -> ${real}`);
+        resolvedCliPath = real;
+      }
+    }
+
+    // Resolve node executable too — pass it as `executable` so the SDK doesn't
+    // have to find `node` on the limited Obsidian PATH.
+    const nodePath = findNodeExecutable();
+
     // Capture stderr so we can surface real CLI errors (instead of the generic
     // "stdout closed unexpectedly").
     const stderrLines: string[] = [];
@@ -180,6 +197,14 @@ export class CodebuddyChatRuntime implements ChatRuntime {
       // Enriched env so the spawned CLI can find node/codebuddy
       env: buildChildEnv(),
     };
+
+    // Pass the absolute node path via `executable` to avoid PATH lookups.
+    // The SDK type only allows 'node' | 'bun' | 'deno' literal but the
+    // implementation passes it directly to spawn(), so a full path works.
+    if (nodePath) {
+      (options as SessionOptions & { executable?: string }).executable = nodePath;
+      logger.info(`[Runtime] Using node executable: ${nodePath}`);
+    }
 
     // SessionOptions type doesn't expose `stderr` but the underlying transport
     // does forward it. Cast to attach the callback for diagnostics.
@@ -220,7 +245,8 @@ export class CodebuddyChatRuntime implements ChatRuntime {
   getConnectionFailureDiagnostic(originalError: Error): string {
     const stderr = this._lastStderrBuffer.join('').trim();
     const node = findNodeExecutable();
-    const cli = findCodebuddyExecutable();
+    const cliRaw = findCodebuddyExecutable();
+    const cliReal = cliRaw ? realCliPath(cliRaw) : null;
 
     const lines: string[] = [];
     lines.push(`原因: ${originalError.message}`);
@@ -231,16 +257,26 @@ export class CodebuddyChatRuntime implements ChatRuntime {
     }
     lines.push('');
     lines.push('环境检测:');
-    lines.push(`  node:      ${node ?? '❌ 未找到'}`);
-    lines.push(`  codebuddy: ${cli ?? '❌ 未找到（请运行 npm i -g @tencent-ai/codebuddy-code）'}`);
+    lines.push(`  node:           ${node ?? '❌ 未找到'}`);
+    lines.push(`  codebuddy:      ${cliRaw ?? '❌ 未找到'}`);
+    if (cliReal && cliReal !== cliRaw) {
+      lines.push(`  codebuddy(real): ${cliReal}`);
+    }
 
     if (!node) {
       lines.push('');
-      lines.push('💡 Obsidian 没继承 shell PATH。请确保 Node.js 已安装到 /usr/local/bin、Homebrew 或 nvm。');
+      lines.push('💡 找不到 node。请确保 Node.js 已安装到 /usr/local/bin、Homebrew 或 nvm。');
     }
-    if (!cli) {
+    if (!cliRaw) {
       lines.push('');
       lines.push('💡 找不到 `codebuddy` 命令。安装：npm install -g @tencent-ai/codebuddy-code');
+    }
+    if (cliRaw && !stderr) {
+      lines.push('');
+      lines.push('💡 CLI 子进程立即退出且无 stderr 输出。可能原因：');
+      lines.push('   1. CLI 未认证 — 终端运行 `codebuddy` 完成首次认证');
+      lines.push('   2. CLI 版本与 SDK 不兼容 — 升级 codebuddy-code');
+      lines.push('   3. headless.js 路径推导错误 — 已尝试 realpath 解析');
     }
 
     return lines.join('\n');
