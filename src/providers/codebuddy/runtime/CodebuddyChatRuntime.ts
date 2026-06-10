@@ -11,7 +11,7 @@
  * - Streaming via AsyncGenerator<Message>
  */
 
-import type { ChatRuntime } from '../../../core/runtime/ChatRuntime';
+import type { ChatRuntime, ModelInfo } from '../../../core/runtime/ChatRuntime';
 import type { StartOptions, SessionHandle, RuntimeStatus } from '../../../core/runtime/types';
 import type { ProviderDescriptor, UserInput, SessionEvent, PermissionMode } from '../../../core/types';
 import type { CodebuddianSettings } from '../../../core/types/settings';
@@ -62,6 +62,7 @@ export class CodebuddyChatRuntime implements ChatRuntime {
   private vaultPath: string;
 
   private currentSessionHandle: SdkSessionHandle | null = null;
+  private currentSdkSession: Session | null = null;
   private state: CodebuddyProviderState;
 
   constructor(settings: CodebuddianSettings, approvalManager: ApprovalManager, vaultPath: string) {
@@ -97,6 +98,7 @@ export class CodebuddyChatRuntime implements ChatRuntime {
 
     const sessionId = sdkSession.sessionId;
     this.state.sessionId = sessionId;
+    this.currentSdkSession = sdkSession;
 
     this.currentSessionHandle = new SdkSessionHandle(sessionId, sdkSession, this);
     logger.info(`[Runtime] Session started: ${sessionId}`);
@@ -112,11 +114,29 @@ export class CodebuddyChatRuntime implements ChatRuntime {
     return { ...this.state };
   }
 
+  async getAvailableModels(): Promise<ModelInfo[]> {
+    if (!this.currentSdkSession) {
+      return [];
+    }
+    try {
+      const models = await this.currentSdkSession.getAvailableModels();
+      return models.map(m => ({
+        id: m.modelId,
+        name: m.name,
+        description: m.description,
+      }));
+    } catch (e) {
+      logger.warn('[Runtime] getAvailableModels failed:', e);
+      return [];
+    }
+  }
+
   async dispose(): Promise<void> {
     if (this.currentSessionHandle) {
       await this.currentSessionHandle.close();
       this.currentSessionHandle = null;
     }
+    this.currentSdkSession = null;
   }
 
   // -------------------------------------------------------------------------
@@ -270,6 +290,11 @@ class SdkSessionHandle implements SessionHandle {
     return () => {
       this.eventListeners.get(evt)?.delete(cb);
     };
+  }
+
+  /** Expose the underlying SDK session for control requests (e.g. getAvailableModels). */
+  getSdkSession(): Session {
+    return this.sdkSession;
   }
 
   async close(): Promise<void> {

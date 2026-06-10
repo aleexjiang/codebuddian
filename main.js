@@ -37,6 +37,40 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 ));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
+// src/features/chat/constants.ts
+var constants_exports = {};
+__export(constants_exports, {
+  AUTO_SCROLL_THRESHOLD: () => AUTO_SCROLL_THRESHOLD,
+  AVAILABLE_MODELS: () => AVAILABLE_MODELS,
+  CHAT_ICON: () => CHAT_ICON,
+  CHAT_VIEW_TYPE: () => CHAT_VIEW_TYPE,
+  EFFORT_OPTIONS: () => EFFORT_OPTIONS,
+  MAX_INPUT_HEIGHT: () => MAX_INPUT_HEIGHT,
+  MIN_INPUT_HEIGHT: () => MIN_INPUT_HEIGHT,
+  setAvailableModels: () => setAvailableModels
+});
+function setAvailableModels(models) {
+  AVAILABLE_MODELS = [{ id: "", label: "Default (CLI default)" }, ...models];
+}
+var CHAT_VIEW_TYPE, CHAT_ICON, MAX_INPUT_HEIGHT, MIN_INPUT_HEIGHT, AUTO_SCROLL_THRESHOLD, AVAILABLE_MODELS, EFFORT_OPTIONS;
+var init_constants = __esm({
+  "src/features/chat/constants.ts"() {
+    CHAT_VIEW_TYPE = "codebuddian-chat";
+    CHAT_ICON = "message-circle";
+    MAX_INPUT_HEIGHT = 200;
+    MIN_INPUT_HEIGHT = 40;
+    AUTO_SCROLL_THRESHOLD = 100;
+    AVAILABLE_MODELS = [
+      { id: "", label: "Default (CLI default)" }
+    ];
+    EFFORT_OPTIONS = [
+      { id: "low", label: "Low" },
+      { id: "medium", label: "Medium" },
+      { id: "high", label: "High" }
+    ];
+  }
+});
+
 // node_modules/@tencent-ai/agent-sdk/lib/_internal/query-controller.js
 var require_query_controller = __commonJS({
   "node_modules/@tencent-ai/agent-sdk/lib/_internal/query-controller.js"(exports) {
@@ -44783,27 +44817,7 @@ var DEFAULT_SETTINGS = {
 
 // src/features/chat/CodebuddianView.ts
 var import_obsidian2 = require("obsidian");
-
-// src/features/chat/constants.ts
-var CHAT_VIEW_TYPE = "codebuddian-chat";
-var CHAT_ICON = "message-circle";
-var AVAILABLE_MODELS = [
-  { id: "", label: "Default (CLI default)" },
-  { id: "claude-opus-4.8", label: "Claude Opus 4.8" },
-  { id: "claude-sonnet-4.7", label: "Claude Sonnet 4.7" },
-  { id: "gpt-5.5", label: "GPT-5.5" },
-  { id: "gpt-5.5-mini", label: "GPT-5.5 Mini" },
-  { id: "kimi-k2.6", label: "Kimi K2.6" },
-  { id: "deepseek-v4-pro", label: "DeepSeek V4 Pro" },
-  { id: "deepseek-v4-lite", label: "DeepSeek V4 Lite" },
-  { id: "gemini-3.5-pro", label: "Gemini 3.5 Pro" },
-  { id: "qwen-4.5-max", label: "Qwen 4.5 Max" }
-];
-var EFFORT_OPTIONS = [
-  { id: "low", label: "Low" },
-  { id: "medium", label: "Medium" },
-  { id: "high", label: "High" }
-];
+init_constants();
 
 // src/features/chat/state/types.ts
 function createEmptyTab(id) {
@@ -45509,6 +45523,7 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
   effortSelectEl;
   headerEl;
   runtime = null;
+  modelsLoaded = false;
   constructor(leaf) {
     super(leaf);
     this.stateManager = new ChatStateManager();
@@ -45533,26 +45548,24 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
     container.empty();
     container.addClass("codebuddian-chat-container");
     this.headerEl = container.createDiv({ cls: "codebuddian-header" });
-    const brandEl = this.headerEl.createDiv({ cls: "codebuddian-brand" });
-    brandEl.createEl("span", { cls: "codebuddian-brand-icon", text: "\u{1F916}" });
-    brandEl.createEl("span", { cls: "codebuddian-brand-text", text: "CodeBuddy" });
-    const controlsEl = this.headerEl.createDiv({ cls: "codebuddian-header-controls" });
-    const modelWrap = controlsEl.createDiv({ cls: "codebuddian-control-group" });
+    const titleSlot = this.headerEl.createDiv({ cls: "codebuddian-title-slot" });
+    const logoEl = titleSlot.createSpan({ cls: "codebuddian-logo" });
+    logoEl.appendChild(this.createLogoSvg());
+    titleSlot.createEl("h4", { text: "CodeBuddy", cls: "codebuddian-title-text" });
+    const actionsEl = this.headerEl.createDiv({ cls: "codebuddian-header-actions" });
+    const modelWrap = actionsEl.createDiv({ cls: "codebuddian-control-group" });
     modelWrap.createEl("label", { cls: "codebuddian-control-label", text: t("chat.model") });
-    this.modelSelectEl = modelWrap.createEl("select", { cls: "codebuddian-select" });
-    AVAILABLE_MODELS.forEach((m) => {
-      const opt = this.modelSelectEl.createEl("option", { text: m.label });
-      opt.value = m.id;
-    });
+    this.modelSelectEl = modelWrap.createEl("select", { cls: "codebuddian-select codebuddian-model-select" });
+    this.renderModelOptions();
     this.modelSelectEl.addEventListener("change", () => {
       const tab = this.stateManager.getActiveTab();
       if (tab) {
         this.stateManager.updateTab(tab.id, { model: this.modelSelectEl.value });
       }
     });
-    const effortWrap = controlsEl.createDiv({ cls: "codebuddian-control-group" });
+    const effortWrap = actionsEl.createDiv({ cls: "codebuddian-control-group" });
     effortWrap.createEl("label", { cls: "codebuddian-control-label", text: t("chat.effort") });
-    this.effortSelectEl = effortWrap.createEl("select", { cls: "codebuddian-select" });
+    this.effortSelectEl = effortWrap.createEl("select", { cls: "codebuddian-select codebuddian-effort-select" });
     EFFORT_OPTIONS.forEach((e) => {
       const opt = this.effortSelectEl.createEl("option", { text: e.label });
       opt.value = e.id;
@@ -45563,34 +45576,48 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
         this.stateManager.updateTab(tab.id, { effort: this.effortSelectEl.value });
       }
     });
+    const newTabBtn = actionsEl.createDiv({ cls: "codebuddian-header-btn", attr: { "aria-label": "New tab" } });
+    (0, import_obsidian2.setIcon)(newTabBtn, "square-plus");
+    newTabBtn.addEventListener("click", () => this.tabManager.createTab());
     const tabBarEl = container.createDiv({ cls: "codebuddian-tab-bar-container" });
     this.tabBar = new TabBar(tabBarEl, {
       onTabClick: (id) => this.stateManager.setActiveTab(id),
       onTabClose: (id) => this.tabManager.closeTab(id),
       onNewTab: () => this.tabManager.createTab()
     });
-    this.messagesContainer = container.createDiv({ cls: "codebuddian-messages" });
-    const inputArea = container.createDiv({ cls: "codebuddian-input-area" });
-    const toolbar = inputArea.createDiv({ cls: "codebuddian-input-toolbar" });
-    const planModeBtn = toolbar.createEl("button", { text: "\u{1F4CB} Plan", cls: "codebuddian-toolbar-btn" });
+    const messagesWrapper = container.createDiv({ cls: "codebuddian-messages-wrapper" });
+    this.messagesContainer = messagesWrapper.createDiv({ cls: "codebuddian-messages" });
+    const inputContainer = container.createDiv({ cls: "codebuddian-input-container" });
+    const inputWrapper = inputContainer.createDiv({ cls: "codebuddian-input-wrapper" });
+    const toolbar = inputWrapper.createDiv({ cls: "codebuddian-input-toolbar" });
+    const planModeBtn = toolbar.createEl("button", {
+      cls: "codebuddian-toolbar-btn",
+      attr: { "aria-label": "Toggle plan mode" }
+    });
+    (0, import_obsidian2.setIcon)(planModeBtn, "list-checks");
     planModeBtn.addEventListener("click", () => {
       this.conversationController.togglePlanMode();
     });
-    const cancelBtn = toolbar.createEl("button", { text: "\u23F9 Stop", cls: "codebuddian-toolbar-btn" });
-    cancelBtn.addEventListener("click", () => {
+    const stopBtn = toolbar.createEl("button", {
+      cls: "codebuddian-toolbar-btn",
+      attr: { "aria-label": "Stop generation" }
+    });
+    (0, import_obsidian2.setIcon)(stopBtn, "square");
+    stopBtn.addEventListener("click", () => {
       this.conversationController.cancel();
     });
-    this.textareaEl = inputArea.createEl("textarea", {
+    this.textareaEl = inputWrapper.createEl("textarea", {
       cls: "codebuddian-input",
       attr: {
-        placeholder: "Message CodeBuddy\u2026 (Enter to send, Shift+Enter for newline)\nUse @file to mention files, # for instructions, / for commands",
+        placeholder: "Message CodeBuddy\u2026 (Enter to send, Shift+Enter for newline)",
         rows: "1"
       }
     });
-    this.sendButtonEl = inputArea.createEl("button", {
-      text: "\u27A4",
-      cls: "codebuddian-send-btn"
+    this.sendButtonEl = inputWrapper.createEl("button", {
+      cls: "codebuddian-send-btn",
+      attr: { "aria-label": "Send message" }
     });
+    (0, import_obsidian2.setIcon)(this.sendButtonEl, "send");
     this.messageRenderer = new MessageRenderer(this.messagesContainer, this, this.app);
     this.inputController = new InputController(
       this.textareaEl,
@@ -45600,9 +45627,53 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
     );
     this.stateManager.subscribe(() => this.render());
     this.tabManager.ensureAtLeastOneTab();
+    this.tryLoadModels();
   }
   async onClose() {
     await this.conversationController.dispose();
+  }
+  createLogoSvg() {
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("width", "18");
+    svg.setAttribute("height", "18");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("fill", "none");
+    const path = document.createElementNS(ns, "path");
+    path.setAttribute("d", "M12 2a2 2 0 0 1 2 2v2h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4V4a2 2 0 0 1 2-2zm0 2v2h0V4zm-5 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm10 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2z");
+    path.setAttribute("fill", "currentColor");
+    svg.appendChild(path);
+    return svg;
+  }
+  renderModelOptions() {
+    this.modelSelectEl.empty();
+    for (const m of AVAILABLE_MODELS) {
+      const opt = this.modelSelectEl.createEl("option", { text: m.label });
+      opt.value = m.id;
+    }
+  }
+  /** Attempt to fetch real model list from the runtime once a session is active. */
+  async tryLoadModels() {
+    if (this.modelsLoaded) return;
+    for (let i = 0; i < 10; i++) {
+      await new Promise((r) => setTimeout(r, 800));
+      if (!this.runtime) continue;
+      try {
+        const models = await this.runtime.getAvailableModels();
+        if (models.length > 0) {
+          const { setAvailableModels: setAvailableModels2 } = await Promise.resolve().then(() => (init_constants(), constants_exports));
+          setAvailableModels2(models.map((m) => ({ id: m.id, label: m.name })));
+          this.renderModelOptions();
+          const activeTab = this.stateManager.getActiveTab();
+          if (activeTab) {
+            this.modelSelectEl.value = activeTab.model;
+          }
+          this.modelsLoaded = true;
+          break;
+        }
+      } catch {
+      }
+    }
   }
   render() {
     const state = this.stateManager.getState();
@@ -45629,6 +45700,9 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
     }
   }
 };
+
+// src/main.ts
+init_constants();
 
 // src/features/settings/CodebuddianSettingsTab.ts
 var import_obsidian3 = require("obsidian");
@@ -45938,6 +46012,7 @@ var CodebuddyChatRuntime = class {
   approvalManager;
   vaultPath;
   currentSessionHandle = null;
+  currentSdkSession = null;
   state;
   constructor(settings, approvalManager, vaultPath) {
     this.settings = settings;
@@ -45966,6 +46041,7 @@ var CodebuddyChatRuntime = class {
     await sdkSession.connect();
     const sessionId = sdkSession.sessionId;
     this.state.sessionId = sessionId;
+    this.currentSdkSession = sdkSession;
     this.currentSessionHandle = new SdkSessionHandle(sessionId, sdkSession, this);
     logger.info(`[Runtime] Session started: ${sessionId}`);
     return this.currentSessionHandle;
@@ -45976,11 +46052,28 @@ var CodebuddyChatRuntime = class {
   getState() {
     return { ...this.state };
   }
+  async getAvailableModels() {
+    if (!this.currentSdkSession) {
+      return [];
+    }
+    try {
+      const models = await this.currentSdkSession.getAvailableModels();
+      return models.map((m) => ({
+        id: m.modelId,
+        name: m.name,
+        description: m.description
+      }));
+    } catch (e) {
+      logger.warn("[Runtime] getAvailableModels failed:", e);
+      return [];
+    }
+  }
   async dispose() {
     if (this.currentSessionHandle) {
       await this.currentSessionHandle.close();
       this.currentSessionHandle = null;
     }
+    this.currentSdkSession = null;
   }
   // -------------------------------------------------------------------------
   // Build SDK SessionOptions from our settings + start opts
@@ -46095,6 +46188,10 @@ var SdkSessionHandle = class {
     return () => {
       this.eventListeners.get(evt)?.delete(cb);
     };
+  }
+  /** Expose the underlying SDK session for control requests (e.g. getAvailableModels). */
+  getSdkSession() {
+    return this.sdkSession;
   }
   async close() {
     this.abortController.abort();
