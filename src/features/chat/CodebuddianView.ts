@@ -26,7 +26,6 @@ export class CodebuddianChatView extends ItemView {
   private messagesContainer!: HTMLElement;
   private textareaEl!: HTMLTextAreaElement;
   private sendButtonEl!: HTMLButtonElement;
-  private stopBtnEl!: HTMLButtonElement;
   private modeBtnEl!: HTMLButtonElement;
   private modeBtnLabelEl!: HTMLSpanElement;
   private modeMenuEl!: HTMLDivElement;
@@ -214,16 +213,6 @@ export class CodebuddianChatView extends ItemView {
       this.applyThinkingToSession(newVal);
     });
 
-    // Stop button (only visible during streaming)
-    this.stopBtnEl = inputToolbar.createEl('button', {
-      cls: 'codebuddian-toolbar-btn codebuddian-stop-btn',
-      attr: { 'aria-label': 'Stop generation (Esc)' },
-    });
-    setIcon(this.stopBtnEl, 'square');
-    this.stopBtnEl.addEventListener('click', () => {
-      this.conversationController.cancel();
-    });
-
     // Close dropdowns on outside click
     this.registerDomEvent(this.containerEl.ownerDocument, 'click', () => {
       this.closeAllMenus();
@@ -244,18 +233,19 @@ export class CodebuddianChatView extends ItemView {
       this.conversationController,
       this.stateManager,
     );
+    this.inputController.setOnCancel(() => this.conversationController.cancel());
 
     // Subscribe to state changes — debounce via rAF to prevent flicker
     this.stateManager.subscribe(() => this.scheduleRender());
 
-    // Keyboard shortcuts
-    this.scope.register([], 'Escape', (e: KeyboardEvent) => {
-      if (e.isComposing) return false;
-      const tab = this.stateManager.getActiveTab();
-      if (tab && tab.status === 'streaming') {
-        this.conversationController.cancel();
+    // Keyboard shortcuts — use registerDomEvent (this.scope may not be ready in onOpen)
+    this.registerDomEvent(document, 'keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !e.isComposing) {
+        const tab = this.stateManager.getActiveTab();
+        if (tab && tab.status === 'streaming') {
+          this.conversationController.cancel();
+        }
       }
-      return false;
     });
 
     // Ensure at least one tab
@@ -287,16 +277,13 @@ export class CodebuddianChatView extends ItemView {
     new Notice(`${label} mode`, 1500);
   }
 
-  /** Apply model change to the live SDK session. */
+  /** Apply model change — delegates to ConversationController which hot-switches via SDK. */
   private async applyModelToSession(model: string): Promise<void> {
-    if (!this.runtime || !model) return;
-    try {
-      const sdkSession = this.runtime.getSdkSession() as { setModel?(m: string): Promise<void> } | null;
-      if (sdkSession?.setModel) {
-        await sdkSession.setModel(model);
-      }
-    } catch {
-      // Session may not be connected
+    if (!model) return;
+    const success = await this.conversationController.switchModel(model);
+    if (!success) {
+      // Hot-switch failed — notify user that the change will take effect in a new tab
+      new Notice('模型热切换未生效，变更将在新对话中生效');
     }
   }
 
@@ -307,9 +294,12 @@ export class CodebuddianChatView extends ItemView {
       const sdkSession = this.runtime.getSdkSession() as { setConfig?(c: Record<string, unknown>): Promise<void> } | null;
       if (sdkSession?.setConfig) {
         await sdkSession.setConfig({ effort });
+        console.log('[codebuddian] applyEffortToSession — setConfig succeeded:', effort);
+      } else {
+        console.warn('[codebuddian] applyEffortToSession — SDK session has no setConfig method');
       }
-    } catch {
-      // Session may not be connected
+    } catch (e) {
+      console.error('[codebuddian] applyEffortToSession — setConfig failed:', e);
     }
   }
 
@@ -324,9 +314,12 @@ export class CodebuddianChatView extends ItemView {
             ? { type: 'adaptive' }
             : { type: 'disabled' },
         });
+        console.log('[codebuddian] applyThinkingToSession — setConfig succeeded:', enabled);
+      } else {
+        console.warn('[codebuddian] applyThinkingToSession — SDK session has no setConfig method');
       }
-    } catch {
-      // Session may not be connected — setting will apply on next start
+    } catch (e) {
+      console.error('[codebuddian] applyThinkingToSession — setConfig failed:', e);
     }
   }
 
@@ -518,12 +511,15 @@ export class CodebuddianChatView extends ItemView {
       this.inputWrapperEl.removeClass('codebuddian-mode-ask', 'codebuddian-mode-plan', 'codebuddian-mode-craft');
       this.inputWrapperEl.addClass(`codebuddian-mode-${activeTab.mode}`);
 
-      // Stop button visibility
+      // Streaming state — update input controller, textarea, and send/stop button
       const isStreaming = activeTab.status === 'streaming';
-      this.stopBtnEl.toggleClass('is-visible', isStreaming);
+      this.inputController.setStreaming(isStreaming);
+      this.textareaEl.disabled = isStreaming;
 
-      // Send button state
-      this.sendButtonEl.toggleClass('is-disabled', isStreaming);
+      // Toggle send button between "send" (paper plane) and "stop" (square)
+      this.sendButtonEl.toggleClass('is-stop', isStreaming);
+      this.sendButtonEl.empty();
+      setIcon(this.sendButtonEl, isStreaming ? 'square' : 'send');
 
       // Thinking button state
       this.thinkBtnEl?.toggleClass('is-active', activeTab.thinkingEnabled);

@@ -7,6 +7,8 @@ export class InputController {
   private sendButtonEl: HTMLButtonElement;
   private conversationController: ConversationController;
   private stateManager: ChatStateManager;
+  private isStreaming = false;
+  private onCancel: (() => void) | null = null;
 
   constructor(
     textareaEl: HTMLTextAreaElement,
@@ -31,7 +33,7 @@ export class InputController {
       }
     });
 
-    // Send button
+    // Send / Stop button — behaviour toggles based on streaming state
     this.sendButtonEl.addEventListener('click', () => {
       this.handleSend();
     });
@@ -43,7 +45,28 @@ export class InputController {
     });
   }
 
+  /**
+   * Called by the view whenever the streaming state changes.
+   */
+  setStreaming(isStreaming: boolean): void {
+    this.isStreaming = isStreaming;
+  }
+
+  /**
+   * Provide a cancel callback so the send button can act as a stop button
+   * while the agent is streaming a response.
+   */
+  setOnCancel(cb: (() => void) | null): void {
+    this.onCancel = cb;
+  }
+
   private handleSend(): void {
+    // While streaming the button acts as a STOP button
+    if (this.isStreaming) {
+      this.onCancel?.();
+      return;
+    }
+
     const text = this.textareaEl.value.trim();
     if (!text) return;
 

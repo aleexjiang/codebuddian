@@ -188,6 +188,62 @@ export class ConversationController {
     }
   }
 
+  /**
+   * Switch the model for the current tab's session.
+   *
+   * Strategy: the SDK's `setModel()` control request is not reliably applied
+   * to the active conversation by all CLI versions (the model may only affect
+   * the next *new* session).  To guarantee the switch while preserving history,
+   * we close the current session and resume it with the new model via
+   * `resumeSdkSession(sessionId, { model: newModel })`.  The CLI restores the
+   * conversation history from the server-side session store and continues with
+   * the requested model.
+   */
+  async switchModel(model: string): Promise<boolean> {
+    const tab = this.stateManager.getActiveTab();
+    if (!tab) return false;
+
+    // Update tab state first so the UI reflects the change immediately
+    this.stateManager.updateTab(tab.id, { model });
+
+    // If no session exists yet, the model will be picked up when the
+    // session is first created in sendMessage()
+    if (!this.sessionHandle || !this.runtime) return true;
+
+    // Capture the current session ID before closing
+    const oldSessionId = this.sessionHandle.sessionId;
+    console.log('[codebuddian] switchModel — closing session:', oldSessionId);
+
+    // Close the old session (releases lock, kills CLI process)
+    try {
+      await this.sessionHandle.close();
+    } catch {
+      // ignore close errors
+    }
+    this.sessionHandle = null;
+
+    // Resume the session with the new model.  The CLI restores conversation
+    // history from the server-side store and continues with the new model.
+    try {
+      this.sessionHandle = await this.runtime.start({
+        cwd: '',
+        resume: oldSessionId,
+        model: tab.model || undefined,
+        effort: tab.effort || undefined,
+        thinkingEnabled: tab.thinkingEnabled,
+        permissionMode: tab.permissionMode,
+      });
+      this.setupEventListeners(tab.id);
+      this.onSessionCreated?.();
+      console.log('[codebuddian] switchModel — session resumed with model:', model, 'id:', this.sessionHandle.sessionId);
+      return true;
+    } catch (e) {
+      console.error('[codebuddian] switchModel — failed to resume session:', e);
+      this.stateManager.updateTab(tab.id, { status: 'error' });
+      return false;
+    }
+  }
+
   private setupEventListeners(tabId: string): void {
     if (!this.sessionHandle) return;
 

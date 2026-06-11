@@ -129,11 +129,18 @@ export class MessageRenderer {
           }
         }
 
-        // Fast path: update thinking content without full re-render
-        if (message.thinkingContent && existing.thinkingEl) {
-          const thinkContentEl = existing.thinkingEl.querySelector('.codebuddian-thinking-content') as HTMLElement | null;
-          if (thinkContentEl) {
-            thinkContentEl.textContent = message.thinkingContent;
+        // Fast path: update or create thinking block dynamically
+        if (message.thinkingContent) {
+          if (existing.thinkingEl) {
+            const thinkContentEl = existing.thinkingEl.querySelector('.codebuddian-thinking-content') as HTMLElement | null;
+            if (thinkContentEl) {
+              thinkContentEl.textContent = message.thinkingContent;
+            }
+          } else {
+            // Thinking content arrived after initial render — create block now
+            const msgBubble = existing.el.querySelector('.codebuddian-message-assistant') as HTMLElement | null;
+            const target = msgBubble || existing.el;
+            existing.thinkingEl = this.renderThinkingBlock(target, message, existing.contentEl);
           }
         }
 
@@ -192,13 +199,7 @@ export class MessageRenderer {
       cls: `codebuddian-message codebuddian-message-${message.role}`,
     });
 
-    // Thinking content (collapsible, Claudian-style)
-    let thinkingEl: HTMLElement | null = null;
-    if (message.thinkingContent) {
-      thinkingEl = this.renderThinkingBlock(msgEl, message);
-    }
-
-    // Main content — always create the element so fast-path updates work
+    // Main content — create first so thinking block can insert before it
     let contentEl: HTMLElement | null = null;
     let isStreamingRender = false;
     if (message.content != null) {
@@ -229,6 +230,12 @@ export class MessageRenderer {
       }
     }
 
+    // Thinking content (collapsible, Claudian-style) — inserted before content
+    let thinkingEl: HTMLElement | null = null;
+    if (message.thinkingContent) {
+      thinkingEl = this.renderThinkingBlock(msgEl, message, contentEl);
+    }
+
     // Tool calls
     if (message.toolCalls && message.toolCalls.length > 0) {
       const toolRenderer = new ToolCallRenderer(msgEl);
@@ -249,36 +256,45 @@ export class MessageRenderer {
   }
 
   /** Render a collapsible thinking block (Claudian-style). */
-  private renderThinkingBlock(parentEl: HTMLElement, message: ChatMessage): HTMLElement {
+  private renderThinkingBlock(parentEl: HTMLElement, message: ChatMessage, insertBefore?: HTMLElement | null): HTMLElement {
     const isExpanded = this.thinkingExpanded.get(message.id) ?? false;
 
-    const thinkingEl = parentEl.createDiv({
-      cls: `codebuddian-thinking ${isExpanded ? 'is-expanded' : ''}`,
-    });
+    const thinkingEl = document.createElement('div');
+    thinkingEl.addClass('codebuddian-thinking');
+    if (isExpanded) thinkingEl.addClass('is-expanded');
 
-    const toggleBtn = thinkingEl.createEl('button', {
-      cls: 'codebuddian-thinking-toggle',
-      attr: { type: 'button' },
-    });
+    const toggleBtn = document.createElement('button');
+    toggleBtn.addClass('codebuddian-thinking-toggle');
+    toggleBtn.setAttribute('type', 'button');
 
-    const thinkIcon = toggleBtn.createSpan({ cls: 'codebuddian-thinking-toggle-icon' });
+    const thinkIcon = document.createElement('span');
+    thinkIcon.addClass('codebuddian-thinking-toggle-icon');
     setIcon(thinkIcon, 'sparkles');
+    toggleBtn.appendChild(thinkIcon);
 
-    // Label: "Thought for Xs" or just "Thinking" while streaming
-    const labelSpan = toggleBtn.createSpan({ text: 'Thought' });
+    // Label: "Thought" or "Thinking" while streaming
+    const labelSpan = document.createElement('span');
+    labelSpan.setText('Thought');
+    toggleBtn.appendChild(labelSpan);
 
-    // Duration badge (placeholder — can be enhanced with real duration tracking)
-    const durationSpan = toggleBtn.createSpan({ cls: 'codebuddian-thinking-duration' });
+    // Duration badge
+    const durationSpan = document.createElement('span');
+    durationSpan.addClass('codebuddian-thinking-duration');
     durationSpan.setText(message.isStreaming ? '' : ' • done');
+    toggleBtn.appendChild(durationSpan);
 
-    const caretSpan = toggleBtn.createSpan({ cls: 'codebuddian-thinking-toggle-caret' });
+    const caretSpan = document.createElement('span');
+    caretSpan.addClass('codebuddian-thinking-toggle-caret');
     setIcon(caretSpan, 'chevron-down');
+    toggleBtn.appendChild(caretSpan);
+
+    thinkingEl.appendChild(toggleBtn);
 
     // Content
-    const contentEl = thinkingEl.createDiv({
-      cls: 'codebuddian-thinking-content',
-      text: message.thinkingContent ?? '',
-    });
+    const contentEl = document.createElement('div');
+    contentEl.addClass('codebuddian-thinking-content');
+    contentEl.setText(message.thinkingContent ?? '');
+    thinkingEl.appendChild(contentEl);
 
     // Toggle handler
     toggleBtn.addEventListener('click', () => {
@@ -286,6 +302,12 @@ export class MessageRenderer {
       thinkingEl.toggleClass('is-expanded', !expanded);
       this.thinkingExpanded.set(message.id, !expanded);
     });
+
+    if (insertBefore) {
+      parentEl.insertBefore(thinkingEl, insertBefore);
+    } else {
+      parentEl.appendChild(thinkingEl);
+    }
 
     return thinkingEl;
   }

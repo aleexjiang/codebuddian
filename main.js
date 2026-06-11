@@ -45209,10 +45209,16 @@ var MessageRenderer = class {
             existing.lastContent = message.content;
           }
         }
-        if (message.thinkingContent && existing.thinkingEl) {
-          const thinkContentEl = existing.thinkingEl.querySelector(".codebuddian-thinking-content");
-          if (thinkContentEl) {
-            thinkContentEl.textContent = message.thinkingContent;
+        if (message.thinkingContent) {
+          if (existing.thinkingEl) {
+            const thinkContentEl = existing.thinkingEl.querySelector(".codebuddian-thinking-content");
+            if (thinkContentEl) {
+              thinkContentEl.textContent = message.thinkingContent;
+            }
+          } else {
+            const msgBubble2 = existing.el.querySelector(".codebuddian-message-assistant");
+            const target2 = msgBubble2 || existing.el;
+            existing.thinkingEl = this.renderThinkingBlock(target2, message, existing.contentEl);
           }
         }
         prevEl = existing.el;
@@ -45257,10 +45263,6 @@ var MessageRenderer = class {
     const msgEl = rowEl.createDiv({
       cls: `codebuddian-message codebuddian-message-${message.role}`
     });
-    let thinkingEl = null;
-    if (message.thinkingContent) {
-      thinkingEl = this.renderThinkingBlock(msgEl, message);
-    }
     let contentEl = null;
     let isStreamingRender = false;
     if (message.content != null) {
@@ -45290,6 +45292,10 @@ var MessageRenderer = class {
         contentEl.setText(message.content);
       }
     }
+    let thinkingEl = null;
+    if (message.thinkingContent) {
+      thinkingEl = this.renderThinkingBlock(msgEl, message, contentEl);
+    }
     if (message.toolCalls && message.toolCalls.length > 0) {
       const toolRenderer = new ToolCallRenderer(msgEl);
       for (const toolCall of message.toolCalls) {
@@ -45307,31 +45313,44 @@ var MessageRenderer = class {
     };
   }
   /** Render a collapsible thinking block (Claudian-style). */
-  renderThinkingBlock(parentEl, message) {
+  renderThinkingBlock(parentEl, message, insertBefore) {
     const isExpanded = this.thinkingExpanded.get(message.id) ?? false;
-    const thinkingEl = parentEl.createDiv({
-      cls: `codebuddian-thinking ${isExpanded ? "is-expanded" : ""}`
-    });
-    const toggleBtn = thinkingEl.createEl("button", {
-      cls: "codebuddian-thinking-toggle",
-      attr: { type: "button" }
-    });
-    const thinkIcon = toggleBtn.createSpan({ cls: "codebuddian-thinking-toggle-icon" });
+    const thinkingEl = document.createElement("div");
+    thinkingEl.addClass("codebuddian-thinking");
+    if (isExpanded) thinkingEl.addClass("is-expanded");
+    const toggleBtn = document.createElement("button");
+    toggleBtn.addClass("codebuddian-thinking-toggle");
+    toggleBtn.setAttribute("type", "button");
+    const thinkIcon = document.createElement("span");
+    thinkIcon.addClass("codebuddian-thinking-toggle-icon");
     (0, import_obsidian2.setIcon)(thinkIcon, "sparkles");
-    const labelSpan = toggleBtn.createSpan({ text: "Thought" });
-    const durationSpan = toggleBtn.createSpan({ cls: "codebuddian-thinking-duration" });
+    toggleBtn.appendChild(thinkIcon);
+    const labelSpan = document.createElement("span");
+    labelSpan.setText("Thought");
+    toggleBtn.appendChild(labelSpan);
+    const durationSpan = document.createElement("span");
+    durationSpan.addClass("codebuddian-thinking-duration");
     durationSpan.setText(message.isStreaming ? "" : " \u2022 done");
-    const caretSpan = toggleBtn.createSpan({ cls: "codebuddian-thinking-toggle-caret" });
+    toggleBtn.appendChild(durationSpan);
+    const caretSpan = document.createElement("span");
+    caretSpan.addClass("codebuddian-thinking-toggle-caret");
     (0, import_obsidian2.setIcon)(caretSpan, "chevron-down");
-    const contentEl = thinkingEl.createDiv({
-      cls: "codebuddian-thinking-content",
-      text: message.thinkingContent ?? ""
-    });
+    toggleBtn.appendChild(caretSpan);
+    thinkingEl.appendChild(toggleBtn);
+    const contentEl = document.createElement("div");
+    contentEl.addClass("codebuddian-thinking-content");
+    contentEl.setText(message.thinkingContent ?? "");
+    thinkingEl.appendChild(contentEl);
     toggleBtn.addEventListener("click", () => {
       const expanded = thinkingEl.hasClass("is-expanded");
       thinkingEl.toggleClass("is-expanded", !expanded);
       this.thinkingExpanded.set(message.id, !expanded);
     });
+    if (insertBefore) {
+      parentEl.insertBefore(thinkingEl, insertBefore);
+    } else {
+      parentEl.appendChild(thinkingEl);
+    }
     return thinkingEl;
   }
   renderWelcome() {
@@ -45658,6 +45677,48 @@ ${diagnostic}`,
       }
     }
   }
+  /**
+   * Switch the model for the current tab's session.
+   *
+   * Strategy: the SDK's `setModel()` control request is not reliably applied
+   * to the active conversation by all CLI versions (the model may only affect
+   * the next *new* session).  To guarantee the switch while preserving history,
+   * we close the current session and resume it with the new model via
+   * `resumeSdkSession(sessionId, { model: newModel })`.  The CLI restores the
+   * conversation history from the server-side session store and continues with
+   * the requested model.
+   */
+  async switchModel(model) {
+    const tab = this.stateManager.getActiveTab();
+    if (!tab) return false;
+    this.stateManager.updateTab(tab.id, { model });
+    if (!this.sessionHandle || !this.runtime) return true;
+    const oldSessionId = this.sessionHandle.sessionId;
+    console.log("[codebuddian] switchModel \u2014 closing session:", oldSessionId);
+    try {
+      await this.sessionHandle.close();
+    } catch {
+    }
+    this.sessionHandle = null;
+    try {
+      this.sessionHandle = await this.runtime.start({
+        cwd: "",
+        resume: oldSessionId,
+        model: tab.model || void 0,
+        effort: tab.effort || void 0,
+        thinkingEnabled: tab.thinkingEnabled,
+        permissionMode: tab.permissionMode
+      });
+      this.setupEventListeners(tab.id);
+      this.onSessionCreated?.();
+      console.log("[codebuddian] switchModel \u2014 session resumed with model:", model, "id:", this.sessionHandle.sessionId);
+      return true;
+    } catch (e) {
+      console.error("[codebuddian] switchModel \u2014 failed to resume session:", e);
+      this.stateManager.updateTab(tab.id, { status: "error" });
+      return false;
+    }
+  }
   setupEventListeners(tabId) {
     if (!this.sessionHandle) return;
     this.sessionHandle.on("*", (event) => {
@@ -45679,6 +45740,8 @@ var InputController = class {
   sendButtonEl;
   conversationController;
   stateManager;
+  isStreaming = false;
+  onCancel = null;
   constructor(textareaEl, sendButtonEl, conversationController, stateManager) {
     this.textareaEl = textareaEl;
     this.sendButtonEl = sendButtonEl;
@@ -45701,7 +45764,24 @@ var InputController = class {
       this.autoResize();
     });
   }
+  /**
+   * Called by the view whenever the streaming state changes.
+   */
+  setStreaming(isStreaming) {
+    this.isStreaming = isStreaming;
+  }
+  /**
+   * Provide a cancel callback so the send button can act as a stop button
+   * while the agent is streaming a response.
+   */
+  setOnCancel(cb) {
+    this.onCancel = cb;
+  }
   handleSend() {
+    if (this.isStreaming) {
+      this.onCancel?.();
+      return;
+    }
     const text = this.textareaEl.value.trim();
     if (!text) return;
     const mentions = this.parseMentions(text);
@@ -45770,7 +45850,6 @@ var CodebuddianChatView = class extends import_obsidian3.ItemView {
   messagesContainer;
   textareaEl;
   sendButtonEl;
-  stopBtnEl;
   modeBtnEl;
   modeBtnLabelEl;
   modeMenuEl;
@@ -45918,14 +45997,6 @@ var CodebuddianChatView = class extends import_obsidian3.ItemView {
       this.stateManager.updateTab(tab.id, { thinkingEnabled: newVal });
       this.applyThinkingToSession(newVal);
     });
-    this.stopBtnEl = inputToolbar.createEl("button", {
-      cls: "codebuddian-toolbar-btn codebuddian-stop-btn",
-      attr: { "aria-label": "Stop generation (Esc)" }
-    });
-    (0, import_obsidian3.setIcon)(this.stopBtnEl, "square");
-    this.stopBtnEl.addEventListener("click", () => {
-      this.conversationController.cancel();
-    });
     this.registerDomEvent(this.containerEl.ownerDocument, "click", () => {
       this.closeAllMenus();
     });
@@ -45941,14 +46012,15 @@ var CodebuddianChatView = class extends import_obsidian3.ItemView {
       this.conversationController,
       this.stateManager
     );
+    this.inputController.setOnCancel(() => this.conversationController.cancel());
     this.stateManager.subscribe(() => this.scheduleRender());
-    this.scope.register([], "Escape", (e) => {
-      if (e.isComposing) return false;
-      const tab = this.stateManager.getActiveTab();
-      if (tab && tab.status === "streaming") {
-        this.conversationController.cancel();
+    this.registerDomEvent(document, "keydown", (e) => {
+      if (e.key === "Escape" && !e.isComposing) {
+        const tab = this.stateManager.getActiveTab();
+        if (tab && tab.status === "streaming") {
+          this.conversationController.cancel();
+        }
       }
-      return false;
     });
     this.tabManager.ensureAtLeastOneTab();
     this.refreshModels();
@@ -45970,15 +46042,12 @@ var CodebuddianChatView = class extends import_obsidian3.ItemView {
     const label = MODE_CONFIG.find((m) => m.id === mode)?.label ?? mode;
     new import_obsidian3.Notice(`${label} mode`, 1500);
   }
-  /** Apply model change to the live SDK session. */
+  /** Apply model change — delegates to ConversationController which hot-switches via SDK. */
   async applyModelToSession(model) {
-    if (!this.runtime || !model) return;
-    try {
-      const sdkSession = this.runtime.getSdkSession();
-      if (sdkSession?.setModel) {
-        await sdkSession.setModel(model);
-      }
-    } catch {
+    if (!model) return;
+    const success = await this.conversationController.switchModel(model);
+    if (!success) {
+      new import_obsidian3.Notice("\u6A21\u578B\u70ED\u5207\u6362\u672A\u751F\u6548\uFF0C\u53D8\u66F4\u5C06\u5728\u65B0\u5BF9\u8BDD\u4E2D\u751F\u6548");
     }
   }
   /** Apply effort change via SDK session's setConfig. */
@@ -45988,8 +46057,12 @@ var CodebuddianChatView = class extends import_obsidian3.ItemView {
       const sdkSession = this.runtime.getSdkSession();
       if (sdkSession?.setConfig) {
         await sdkSession.setConfig({ effort });
+        console.log("[codebuddian] applyEffortToSession \u2014 setConfig succeeded:", effort);
+      } else {
+        console.warn("[codebuddian] applyEffortToSession \u2014 SDK session has no setConfig method");
       }
-    } catch {
+    } catch (e) {
+      console.error("[codebuddian] applyEffortToSession \u2014 setConfig failed:", e);
     }
   }
   /** Apply thinking toggle via SDK session's setConfig. */
@@ -46001,8 +46074,12 @@ var CodebuddianChatView = class extends import_obsidian3.ItemView {
         await sdkSession.setConfig({
           thinking: enabled ? { type: "adaptive" } : { type: "disabled" }
         });
+        console.log("[codebuddian] applyThinkingToSession \u2014 setConfig succeeded:", enabled);
+      } else {
+        console.warn("[codebuddian] applyThinkingToSession \u2014 SDK session has no setConfig method");
       }
-    } catch {
+    } catch (e) {
+      console.error("[codebuddian] applyThinkingToSession \u2014 setConfig failed:", e);
     }
   }
   createLogoSvg() {
@@ -46164,8 +46241,11 @@ var CodebuddianChatView = class extends import_obsidian3.ItemView {
       this.inputWrapperEl.removeClass("codebuddian-mode-ask", "codebuddian-mode-plan", "codebuddian-mode-craft");
       this.inputWrapperEl.addClass(`codebuddian-mode-${activeTab.mode}`);
       const isStreaming = activeTab.status === "streaming";
-      this.stopBtnEl.toggleClass("is-visible", isStreaming);
-      this.sendButtonEl.toggleClass("is-disabled", isStreaming);
+      this.inputController.setStreaming(isStreaming);
+      this.textareaEl.disabled = isStreaming;
+      this.sendButtonEl.toggleClass("is-stop", isStreaming);
+      this.sendButtonEl.empty();
+      (0, import_obsidian3.setIcon)(this.sendButtonEl, isStreaming ? "square" : "send");
       this.thinkBtnEl?.toggleClass("is-active", activeTab.thinkingEnabled);
     }
     if (activeTab) {
