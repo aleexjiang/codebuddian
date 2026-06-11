@@ -14,6 +14,8 @@ export interface ChatRuntime {
   dispose(): Promise<void>;
   /** Get available models from the CLI (requires an active session). */
   getAvailableModels(): Promise<ModelInfo[]>;
+  /** Get cached models from settings (synchronous, no session needed). */
+  getCachedModels(): ModelInfo[];
   /** Get the underlying SDK session for direct control (setPermissionMode, etc). */
   getSdkSession(): unknown;
 }

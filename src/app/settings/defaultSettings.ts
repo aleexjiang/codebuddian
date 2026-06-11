@@ -21,4 +21,5 @@ export const DEFAULT_SETTINGS: CodebuddianSettings = {
   verboseMode: false,
   includePartialMessages: false,
   strictMcpConfig: false,
+  availableModels: [],
 };

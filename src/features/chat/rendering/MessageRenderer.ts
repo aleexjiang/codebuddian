@@ -1,4 +1,4 @@
-import { MarkdownRenderer, Component, App } from 'obsidian';
+import { MarkdownRenderer, Component, App, setIcon } from 'obsidian';
 import type { ChatMessage } from '../../../core/types';
 import { ToolCallRenderer } from './ToolCallRenderer';
 
@@ -11,6 +11,10 @@ interface RenderedMessage {
   lastContent: string;
   // Whether currently rendered as streaming (raw text) vs final (markdown)
   isStreamingRender: boolean;
+  // Streaming indicator element (managed separately from full re-render)
+  indicatorEl: HTMLElement | null;
+  // Thinking block element for updating content without full re-render
+  thinkingEl: HTMLElement | null;
 }
 
 export class MessageRenderer {
@@ -19,6 +23,8 @@ export class MessageRenderer {
   private app: App;
   private rendered = new Map<string, RenderedMessage>();
   private hasWelcome = false;
+  // Track expanded/collapsed state of thinking blocks per message
+  private thinkingExpanded = new Map<string, boolean>();
 
   constructor(containerEl: HTMLElement, component: Component, app: App) {
     this.containerEl = containerEl;
@@ -32,10 +38,8 @@ export class MessageRenderer {
     const toolStatuses = message.toolCalls?.map(t => `${t.id}:${t.status}`).join('|') ?? '';
     return [
       message.role,
-      message.thinkingContent ?? '',
       toolCount,
       toolStatuses,
-      message.isStreaming ? 'S' : 'F',
     ].join('::');
   }
 
@@ -89,28 +93,50 @@ export class MessageRenderer {
           prevEl = newRendered.el;
         }
       } else {
-        // Signature matches — fast path: only update content if it changed
-        if (message.content !== existing.lastContent && existing.contentEl) {
-          if (message.role === 'assistant' && message.isStreaming) {
-            // Streaming: just update text, no markdown render (avoid flicker)
-            existing.contentEl.textContent = message.content;
-            existing.isStreamingRender = true;
-          } else if (message.role === 'assistant' && !message.isStreaming) {
-            // Stream finished: re-render with markdown
-            existing.contentEl.empty();
-            MarkdownRenderer.render(
-              this.app,
-              message.content,
-              existing.contentEl,
-              '',
-              this.component,
-            );
-            existing.isStreamingRender = false;
-          } else {
-            existing.contentEl.textContent = message.content;
-          }
-          existing.lastContent = message.content;
+        // Signature matches — fast path
+        const msgBubble = existing.el.querySelector('.codebuddian-message-assistant, .codebuddian-message-user, .codebuddian-message-system') as HTMLElement | null;
+        const target = msgBubble || existing.el;
+
+        // Ensure contentEl exists (it may have been skipped if initial content was empty)
+        if (!existing.contentEl && message.content != null) {
+          existing.contentEl = target.createDiv({ cls: 'codebuddian-message-content' });
         }
+
+        if (existing.contentEl) {
+          const contentChanged = message.content !== existing.lastContent;
+          const streamStateChanged = message.role === 'assistant' && message.isStreaming !== existing.isStreamingRender;
+
+          if (contentChanged || streamStateChanged) {
+            if (message.role === 'assistant' && message.isStreaming) {
+              // Streaming: just update text, no markdown render (avoid flicker)
+              existing.contentEl.textContent = message.content;
+              existing.isStreamingRender = true;
+            } else if (message.role === 'assistant' && !message.isStreaming) {
+              // Stream finished (or switched from streaming to final): re-render with markdown
+              existing.contentEl.empty();
+              MarkdownRenderer.render(
+                this.app,
+                message.content,
+                existing.contentEl,
+                '',
+                this.component,
+              );
+              existing.isStreamingRender = false;
+            } else {
+              existing.contentEl.textContent = message.content;
+            }
+            existing.lastContent = message.content;
+          }
+        }
+
+        // Fast path: update thinking content without full re-render
+        if (message.thinkingContent && existing.thinkingEl) {
+          const thinkContentEl = existing.thinkingEl.querySelector('.codebuddian-thinking-content') as HTMLElement | null;
+          if (thinkContentEl) {
+            thinkContentEl.textContent = message.thinkingContent;
+          }
+        }
+
         prevEl = existing.el;
       }
     }
@@ -118,8 +144,21 @@ export class MessageRenderer {
     // Remove stale messages no longer in the list
     for (const [id, rendered] of this.rendered) {
       if (!seenIds.has(id)) {
+        this.removeIndicator(rendered);
         rendered.el.remove();
         this.rendered.delete(id);
+        this.thinkingExpanded.delete(id);
+      }
+    }
+
+    // Sync streaming indicators AFTER diff
+    for (const message of messages) {
+      const rendered = this.rendered.get(message.id);
+      if (!rendered) continue;
+      if (message.isStreaming && message.role === 'assistant') {
+        this.ensureIndicator(rendered);
+      } else {
+        this.removeIndicator(rendered);
       }
     }
   }
@@ -130,36 +169,42 @@ export class MessageRenderer {
       return null;
     }
 
-    const msgEl = this.containerEl.createDiv({
+    // Create row: avatar + message bubble
+    const rowEl = this.containerEl.createDiv({
+      cls: `codebuddian-message-row codebuddian-message-row-${message.role}`,
+    });
+
+    // Avatar (only for user and assistant)
+    if (message.role === 'user' || message.role === 'assistant') {
+      const avatarEl = rowEl.createDiv({
+        cls: `codebuddian-message-avatar codebuddian-message-avatar-${message.role}`,
+      });
+      if (message.role === 'user') {
+        setIcon(avatarEl, 'user');
+      } else {
+        // Bot icon — inline SVG since 'bot' may not exist in Obsidian's lucide set
+        avatarEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><circle cx="8" cy="15" r="1.5"/><circle cx="16" cy="15" r="1.5"/></svg>`;
+      }
+    }
+
+    // Message bubble
+    const msgEl = rowEl.createDiv({
       cls: `codebuddian-message codebuddian-message-${message.role}`,
     });
 
-    // Header
-    const headerEl = msgEl.createDiv({ cls: 'codebuddian-message-header' });
-    const roleLabel = message.role === 'user' ? '👤 You'
-      : message.role === 'assistant' ? '🤖 CodeBuddy'
-      : '💡';
-    headerEl.createSpan({ text: roleLabel, cls: 'codebuddian-message-role' });
-    headerEl.createSpan({
-      text: new Date(message.timestamp).toLocaleTimeString(),
-      cls: 'codebuddian-message-time',
-    });
-
-    // Thinking content
+    // Thinking content (collapsible, Claudian-style)
+    let thinkingEl: HTMLElement | null = null;
     if (message.thinkingContent) {
-      const thinkingEl = msgEl.createDiv({ cls: 'codebuddian-thinking' });
-      thinkingEl.createDiv({ cls: 'codebuddian-thinking-header', text: '💭 Thinking' });
-      thinkingEl.createDiv({ cls: 'codebuddian-thinking-content', text: message.thinkingContent });
+      thinkingEl = this.renderThinkingBlock(msgEl, message);
     }
 
-    // Main content
+    // Main content — always create the element so fast-path updates work
     let contentEl: HTMLElement | null = null;
     let isStreamingRender = false;
-    if (message.content) {
+    if (message.content != null) {
       contentEl = msgEl.createDiv({ cls: 'codebuddian-message-content' });
       if (message.role === 'assistant') {
         if (message.isStreaming) {
-          // Streaming: plain text (markdown comes at finalization)
           contentEl.textContent = message.content;
           isStreamingRender = true;
         } else {
@@ -192,21 +237,57 @@ export class MessageRenderer {
       }
     }
 
-    // Streaming indicator (separate element so we can leave content alone)
-    if (message.isStreaming) {
-      const streamEl = msgEl.createDiv({ cls: 'codebuddian-streaming-indicator' });
-      streamEl.createSpan({ text: '●' });
-      streamEl.createSpan({ text: '●' });
-      streamEl.createSpan({ text: '●' });
-    }
-
     return {
-      el: msgEl,
+      el: rowEl,
       contentEl,
       signature: this.buildSignature(message),
       lastContent: message.content,
       isStreamingRender,
+      indicatorEl: null,
+      thinkingEl,
     };
+  }
+
+  /** Render a collapsible thinking block (Claudian-style). */
+  private renderThinkingBlock(parentEl: HTMLElement, message: ChatMessage): HTMLElement {
+    const isExpanded = this.thinkingExpanded.get(message.id) ?? false;
+
+    const thinkingEl = parentEl.createDiv({
+      cls: `codebuddian-thinking ${isExpanded ? 'is-expanded' : ''}`,
+    });
+
+    const toggleBtn = thinkingEl.createEl('button', {
+      cls: 'codebuddian-thinking-toggle',
+      attr: { type: 'button' },
+    });
+
+    const thinkIcon = toggleBtn.createSpan({ cls: 'codebuddian-thinking-toggle-icon' });
+    setIcon(thinkIcon, 'sparkles');
+
+    // Label: "Thought for Xs" or just "Thinking" while streaming
+    const labelSpan = toggleBtn.createSpan({ text: 'Thought' });
+
+    // Duration badge (placeholder — can be enhanced with real duration tracking)
+    const durationSpan = toggleBtn.createSpan({ cls: 'codebuddian-thinking-duration' });
+    durationSpan.setText(message.isStreaming ? '' : ' • done');
+
+    const caretSpan = toggleBtn.createSpan({ cls: 'codebuddian-thinking-toggle-caret' });
+    setIcon(caretSpan, 'chevron-down');
+
+    // Content
+    const contentEl = thinkingEl.createDiv({
+      cls: 'codebuddian-thinking-content',
+      text: message.thinkingContent ?? '',
+    });
+
+    // Toggle handler
+    toggleBtn.addEventListener('click', () => {
+      const expanded = thinkingEl.hasClass('is-expanded');
+      thinkingEl.toggleClass('is-expanded', !expanded);
+      this.thinkingExpanded.set(message.id, !expanded);
+    });
+
+    return thinkingEl;
   }
 
   private renderWelcome(): void {
@@ -231,15 +312,52 @@ export class MessageRenderer {
     });
 
     const tipsEl = welcome.createDiv({ cls: 'codebuddian-welcome-tips' });
-    tipsEl.createDiv({ text: '💡 Use @ to mention files, # for instructions' });
-    tipsEl.createDiv({ text: '⌘ Press Enter to send, Shift+Enter for newline' });
-    tipsEl.createDiv({ text: '🛑 Press Esc to stop generation' });
+
+    const tip1 = tipsEl.createDiv({ cls: 'codebuddian-welcome-tip' });
+    const tip1Icon = tip1.createSpan({ cls: 'codebuddian-welcome-tip-icon' });
+    setIcon(tip1Icon, 'at-sign');
+    tip1.createSpan({ text: 'Use @ to mention files, # for instructions' });
+
+    const tip2 = tipsEl.createDiv({ cls: 'codebuddian-welcome-tip' });
+    const tip2Icon = tip2.createSpan({ cls: 'codebuddian-welcome-tip-icon' });
+    setIcon(tip2Icon, 'cb-keyboard');
+    tip2.createSpan({ text: 'Enter to send, Shift+Enter for newline' });
+
+    const tip3 = tipsEl.createDiv({ cls: 'codebuddian-welcome-tip' });
+    const tip3Icon = tip3.createSpan({ cls: 'codebuddian-welcome-tip-icon' });
+    setIcon(tip3Icon, 'cb-status-stop');
+    tip3.createSpan({ text: 'Esc to stop generation' });
   }
 
   /** Reset all cached state (called when switching tabs). */
   reset(): void {
+    for (const rendered of this.rendered.values()) {
+      this.removeIndicator(rendered);
+    }
     this.containerEl.empty();
     this.rendered.clear();
+    this.thinkingExpanded.clear();
     this.hasWelcome = false;
+  }
+
+  /** Create a streaming indicator on a message element (idempotent). */
+  private ensureIndicator(rendered: RenderedMessage): void {
+    if (rendered.indicatorEl) return;
+    // Place indicator inside the message bubble, not the row
+    const msgBubble = rendered.el.querySelector('.codebuddian-message-assistant') as HTMLElement | null;
+    const target = msgBubble || rendered.el;
+    const streamEl = target.createDiv({ cls: 'codebuddian-streaming-indicator' });
+    streamEl.createSpan({ cls: 'codebuddian-dot' });
+    streamEl.createSpan({ cls: 'codebuddian-dot' });
+    streamEl.createSpan({ cls: 'codebuddian-dot' });
+    rendered.indicatorEl = streamEl;
+  }
+
+  /** Remove streaming indicator if present. */
+  private removeIndicator(rendered: RenderedMessage): void {
+    if (rendered.indicatorEl) {
+      rendered.indicatorEl.remove();
+      rendered.indicatorEl = null;
+    }
   }
 }

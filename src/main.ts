@@ -16,7 +16,6 @@ export class CodebuddianPlugin extends Plugin {
   settings: CodebuddianSettings = DEFAULT_SETTINGS;
   private providerRegistry: ProviderRegistry;
   private approvalManager: ApprovalManager;
-  private chatView: CodebuddianChatView | null = null;
 
   async onload(): Promise<void> {
     await this.loadSettings();
@@ -48,13 +47,17 @@ export class CodebuddianPlugin extends Plugin {
     );
 
     // Register chat view
+    // NOTE: Obsidian docs warn "Never manage references to views in the plugin,
+    // because Obsidian may call the view factory function multiple times."
+    // We do NOT store the view instance. Instead, the view accesses the plugin
+    // through app.plugins.plugins['codebuddian'] when needed.
     this.registerView(CHAT_VIEW_TYPE, (leaf) => {
-      this.chatView = new CodebuddianChatView(leaf);
+      const view = new CodebuddianChatView(leaf);
       const runtime = this.providerRegistry.getActive();
       if (runtime) {
-        this.chatView.setRuntime(runtime);
+        view.setRuntime(runtime);
       }
-      return this.chatView;
+      return view;
     });
 
     // Register ribbon icon
@@ -109,7 +112,6 @@ export class CodebuddianPlugin extends Plugin {
 
   async onunload(): Promise<void> {
     await this.providerRegistry.disposeAll();
-    this.chatView = null;
     logger.info('Codebuddian plugin unloaded');
   }
 

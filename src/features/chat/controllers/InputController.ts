@@ -100,7 +100,7 @@ export class InputController {
   }
 
   private resetHeight(): void {
-    this.textareaEl.style.height = '40px';
+    this.textareaEl.style.height = '';
   }
 
   focus(): void {

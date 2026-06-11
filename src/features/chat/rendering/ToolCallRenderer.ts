@@ -1,7 +1,34 @@
+import { setIcon } from 'obsidian';
 import { TOOL_ICONS } from '../../../core/tools/toolIcons';
 import { formatToolInput } from '../../../core/tools/toolInput';
 import { formatToolResult } from '../../../core/tools/toolResultContent';
 import type { ToolCall, ToolResult } from '../../../core/types';
+
+const STATUS_ICON: Record<string, string> = {
+  pending: 'cb-status-pending',
+  running: 'cb-status-running',
+  completed: 'cb-status-completed',
+  error: 'cb-status-error',
+  approval_needed: 'cb-status-warning',
+};
+
+/** Extract file path from tool args for display as a reference tag. */
+function extractFileRef(args: Record<string, unknown>): string | null {
+  const candidates = [
+    args.file_path,
+    args.path,
+    args.filePath,
+    args.file,
+    args.target,
+  ];
+  for (const c of candidates) {
+    if (typeof c === 'string' && c.length > 0) return c;
+  }
+  // Some tools have args like { file: { path: '...' } }
+  const nested = args.file as Record<string, unknown> | undefined;
+  if (nested && typeof nested.path === 'string') return nested.path;
+  return null;
+}
 
 export class ToolCallRenderer {
   private containerEl: HTMLElement;
@@ -15,21 +42,28 @@ export class ToolCallRenderer {
 
     // Header
     const headerEl = el.createDiv({ cls: 'codebuddian-tool-header' });
-    const icon = TOOL_ICONS[toolCall.tool] || '🔧';
-    headerEl.createSpan({ text: `${icon} ${toolCall.tool}`, cls: 'codebuddian-tool-name' });
+    const nameSpan = headerEl.createSpan({ cls: 'codebuddian-tool-name' });
+    const toolIcon = nameSpan.createSpan({ cls: 'codebuddian-tool-name-icon' });
+    const iconName = TOOL_ICONS[toolCall.tool] || 'cb-wrench';
+    setIcon(toolIcon, iconName);
+    nameSpan.createSpan({ text: toolCall.tool });
+
+    // File reference tag (Claudian-style)
+    const fileRef = extractFileRef(toolCall.args);
+    if (fileRef) {
+      const tagEl = headerEl.createSpan({ cls: 'codebuddian-tool-file-tag' });
+      const tagIcon = tagEl.createSpan({ cls: 'codebuddian-tool-file-tag-icon' });
+      setIcon(tagIcon, 'file-text');
+      tagEl.createSpan({ text: fileRef.split('/').pop() || fileRef });
+    }
 
     // Status badge
-    const statusColors: Record<string, string> = {
-      pending: '🟡',
-      running: '🔵',
-      completed: '🟢',
-      error: '🔴',
-      approval_needed: '⚠️',
-    };
-    headerEl.createSpan({
-      text: statusColors[toolCall.status] || '⚪',
-      cls: 'codebuddian-tool-status',
+    const statusSpan = headerEl.createSpan({
+      cls: `codebuddian-tool-status codebuddian-tool-status-${toolCall.status}`,
+      attr: { 'aria-label': `Status: ${toolCall.status}` },
     });
+    const statusIcon = statusSpan.createSpan({ cls: 'codebuddian-tool-status-icon' });
+    setIcon(statusIcon, STATUS_ICON[toolCall.status] || 'cb-status-pending');
 
     // Args (collapsible)
     const argsEl = el.createDiv({ cls: 'codebuddian-tool-args' });
@@ -58,7 +92,7 @@ export class ToolCallRenderer {
 
     el.createDiv({
       cls: 'codebuddian-approval-header',
-      text: `⚠️ Approval Required: ${toolCall.tool}`,
+      text: `Approval required: ${toolCall.tool}`,
     });
 
     const argsEl = el.createDiv({ cls: 'codebuddian-approval-args' });
@@ -67,13 +101,13 @@ export class ToolCallRenderer {
 
     const btnRow = el.createDiv({ cls: 'codebuddian-approval-buttons' });
     const approveBtn = btnRow.createEl('button', {
-      text: '✅ Approve',
+      text: 'Approve',
       cls: 'codebuddian-btn codebuddian-btn-approve',
     });
     approveBtn.addEventListener('click', onApprove);
 
     const denyBtn = btnRow.createEl('button', {
-      text: '❌ Deny',
+      text: 'Deny',
       cls: 'codebuddian-btn codebuddian-btn-deny',
     });
     denyBtn.addEventListener('click', onDeny);

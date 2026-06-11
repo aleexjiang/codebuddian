@@ -120,16 +120,53 @@ export class CodebuddyChatRuntime implements ChatRuntime {
       return [];
     }
     try {
+      // Try getAvailableModelsRaw first — returns more data
+      const rawModels = await this.currentSdkSession.getAvailableModelsRaw();
+      if (rawModels && rawModels.length > 0) {
+        const models = rawModels
+          .filter(m => !m.disabled && m.configurable !== false)
+          .map(m => ({
+            id: m.id,
+            name: m.name || m.id,
+            description: m.descriptionZh || m.descriptionEn || m.description,
+          }));
+        // Update cached models in settings for next startup
+        this.settings.availableModels = models.map(m => ({ id: m.id, name: m.name }));
+        return models;
+      }
+    } catch (e) {
+      logger.debug('[Runtime] getAvailableModelsRaw failed, trying simplified:', e);
+    }
+    try {
       const models = await this.currentSdkSession.getAvailableModels();
-      return models.map(m => ({
+      const result = models.map(m => ({
         id: m.modelId,
         name: m.name,
         description: m.description,
       }));
+      // Update cached models in settings for next startup
+      this.settings.availableModels = result.map(m => ({ id: m.id, name: m.name }));
+      return result;
     } catch (e) {
       logger.warn('[Runtime] getAvailableModels failed:', e);
       return [];
     }
+  }
+
+  /**
+   * Get cached models from plugin settings (synchronous, no session needed).
+   *
+   * The runtime's `this.settings` is the same object reference as the plugin's
+   * `this.settings` (set via the factory closure), so mutations made in the
+   * settings tab (e.g., "Detect models") are immediately visible here.
+   */
+  getCachedModels(): ModelInfo[] {
+    const cached = this.settings?.availableModels;
+    if (!cached || cached.length === 0) return [];
+    return cached.map(m => ({
+      id: m.id,
+      name: m.name || m.id,
+    }));
   }
 
   async dispose(): Promise<void> {
@@ -216,6 +253,12 @@ export class CodebuddyChatRuntime implements ChatRuntime {
 
     if (opts.effort || this.settings.effort) {
       options.effort = (opts.effort || this.settings.effort) as 'low' | 'medium' | 'high' | 'xhigh';
+    }
+
+    if (opts.thinkingEnabled !== undefined) {
+      options.thinking = opts.thinkingEnabled
+        ? { type: 'adaptive' as const }
+        : { type: 'disabled' as const };
     }
 
     if (opts.maxTurns || this.settings.maxTurns) {
@@ -356,7 +399,9 @@ class SdkSessionHandle implements SessionHandle {
   }
 
   async cancel(): Promise<void> {
-    this.abortController.abort();
+    // Only interrupt the SDK session — do NOT abort the consumer loop.
+    // The SDK stream stays open after interrupt(); the consumer will keep
+    // running and process the next turn when the user sends a new message.
     try {
       await this.sdkSession.interrupt();
     } catch (e) {
@@ -426,8 +471,14 @@ class SdkSessionHandle implements SessionHandle {
         this.handleSDKMessage(msg);
       }
     } catch (e: unknown) {
-      if (e instanceof Error && e.message?.includes('abort')) {
-        // Normal cancellation
+      // Distinguish normal interrupt/cancel from real errors.
+      // After sdkSession.interrupt(), the stream may throw with a message
+      // containing "interrupt", "abort", or "cancel" — these are expected
+      // and should NOT be reported as errors.
+      const msg = e instanceof Error ? e.message : String(e);
+      const isNormalStop = /abort|interrupt|cancel/i.test(msg);
+      if (isNormalStop) {
+        logger.debug('[Session] Consumer stopped due to interrupt/cancel');
       } else {
         logger.error('[Session] Consumer error:', e);
         this.emit('error', { type: 'error', data: { error: e }, timestamp: Date.now() });

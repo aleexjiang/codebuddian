@@ -15,6 +15,7 @@ export interface StartOptions {
   disallowedTools?: string[];
   maxTurns?: number;
   effort?: string;
+  thinkingEnabled?: boolean;
   cwd: string;
 }
 

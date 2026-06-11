@@ -36,6 +36,9 @@ export interface CodebuddianSettings {
   verboseMode: boolean;
   includePartialMessages: boolean;
   strictMcpConfig: boolean;
+
+  // Cached model list (detected from CLI)
+  availableModels: Array<{ id: string; name: string }>;
 }
 
 export const DEFAULT_SETTINGS: CodebuddianSettings = {
@@ -59,4 +62,5 @@ export const DEFAULT_SETTINGS: CodebuddianSettings = {
   verboseMode: false,
   includePartialMessages: false,
   strictMcpConfig: false,
+  availableModels: [],
 };

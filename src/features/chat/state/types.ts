@@ -12,6 +12,7 @@ export interface ChatTab {
   sessionId: string | null;
   model: string;
   effort: string;
+  thinkingEnabled: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -34,6 +35,7 @@ export function createEmptyTab(id: string): ChatTab {
     sessionId: null,
     model: '',
     effort: 'medium',
+    thinkingEnabled: false,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };

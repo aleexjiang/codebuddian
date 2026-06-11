@@ -33,12 +33,16 @@ export class StreamController {
 
       case 'thinking': {
         const data = event.data as { content?: string };
-        // Update thinking content on last assistant message
+        // Only accumulate thinking content if the tab has thinking enabled.
+        // Some models may still emit thinking blocks even when thinking
+        // is disabled in the SDK config; we silently discard them here.
         const tab = this.stateManager.getActiveTab();
-        if (tab) {
+        if (tab && tab.thinkingEnabled) {
           const lastAssistant = [...tab.messages].reverse().find(m => m.role === 'assistant');
           if (lastAssistant) {
-            lastAssistant.thinkingContent = data.content || '';
+            // APPEND (delta chunks) — NOT replace. thinking events come as
+            // incremental thinking_delta events from the SDK.
+            lastAssistant.thinkingContent = (lastAssistant.thinkingContent || '') + (data.content || '');
             this.stateManager.updateTab(tabId, {});
           }
         }
@@ -103,7 +107,7 @@ export class StreamController {
         const errorMsg: ChatMessage = {
           id: `msg-${Date.now()}`,
           role: 'system',
-          content: `❌ Error: ${data.message || data.stderr || 'Unknown error'}`,
+          content: `Error: ${data.message || data.stderr || 'Unknown error'}`,
           timestamp: event.timestamp,
         };
         this.stateManager.addMessage(tabId, errorMsg);
@@ -119,9 +123,10 @@ export class StreamController {
 
   /** Finalize the current streaming message on cancel/interrupt. */
   finalizeOnCancel(tabId: string): void {
-    if (this.currentAssistantContent) {
-      this.stateManager.finalizeLastAssistantMessage(tabId);
-      this.currentAssistantContent = '';
-    }
+    // Always finalize — even if no content was received yet,
+    // the placeholder assistant message must have isStreaming=false
+    // so the UI removes the loading indicator.
+    this.stateManager.finalizeLastAssistantMessage(tabId);
+    this.currentAssistantContent = '';
   }
 }

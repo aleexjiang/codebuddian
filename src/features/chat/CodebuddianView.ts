@@ -1,5 +1,5 @@
 import { ItemView, WorkspaceLeaf, Notice, setIcon } from 'obsidian';
-import { CHAT_VIEW_TYPE, CHAT_ICON, AVAILABLE_MODELS, EFFORT_OPTIONS } from './constants';
+import { CHAT_VIEW_TYPE, CHAT_ICON, EFFORT_OPTIONS } from './constants';
 import { ChatStateManager } from './state/ChatState';
 import { TabManager } from './tabs/TabManager';
 import { TabBar } from './tabs/TabBar';
@@ -26,15 +26,34 @@ export class CodebuddianChatView extends ItemView {
   private messagesContainer!: HTMLElement;
   private textareaEl!: HTMLTextAreaElement;
   private sendButtonEl!: HTMLButtonElement;
-  private modelSelectEl!: HTMLSelectElement;
-  private effortSelectEl!: HTMLSelectElement;
   private stopBtnEl!: HTMLButtonElement;
   private modeBtnEl!: HTMLButtonElement;
   private modeBtnLabelEl!: HTMLSpanElement;
   private modeMenuEl!: HTMLDivElement;
   private inputWrapperEl!: HTMLElement;
+  private thinkBtnEl!: HTMLButtonElement;
   private runtime: ChatRuntime | null = null;
-  private modelsLoaded = false;
+
+  /**
+   * Local model list — populated from runtime.getCachedModels() (reads
+   * plugin settings synchronously) or runtime.getAvailableModels() (live
+   * SDK query after session established).
+   *
+   * No global state (AVAILABLE_MODELS), no plugin reference (getPlugin()).
+   * The runtime is the single source of truth.
+   */
+  private models: Array<{ id: string; label: string }> = [{ id: '', label: 'Default' }];
+
+  // Pill dropdown groups
+  private modeMenuGroupEl!: HTMLDivElement;
+  private modelMenuGroupEl!: HTMLDivElement;
+  private modelBtnEl!: HTMLButtonElement;
+  private modelBtnLabelEl!: HTMLSpanElement;
+  private modelMenuEl!: HTMLDivElement;
+  private effortMenuGroupEl!: HTMLDivElement;
+  private effortBtnEl!: HTMLButtonElement;
+  private effortBtnLabelEl!: HTMLSpanElement;
+  private effortMenuEl!: HTMLDivElement;
 
   constructor(leaf: WorkspaceLeaf) {
     super(leaf);
@@ -95,28 +114,44 @@ export class CodebuddianChatView extends ItemView {
     // ===== Input Area =====
     const inputContainer = container.createDiv({ cls: 'codebuddian-input-container' });
 
-    // -- Input toolbar (model + mode + effort) --
-    const inputToolbar = inputContainer.createDiv({ cls: 'codebuddian-input-toolbar-row' });
+    // -- Input wrapper: textarea + floating toolbar + send button --
+    this.inputWrapperEl = inputContainer.createDiv({ cls: 'codebuddian-input-wrapper' });
 
-    // Model selector
-    const modelGroup = inputToolbar.createDiv({ cls: 'codebuddian-toolbar-group' });
-    setIcon(modelGroup.createSpan({ cls: 'codebuddian-toolbar-group-icon' }), 'cpu');
-    this.modelSelectEl = modelGroup.createEl('select', { cls: 'codebuddian-select codebuddian-toolbar-select' });
-    this.renderModelOptions();
-    this.modelSelectEl.addEventListener('change', () => {
-      const tab = this.stateManager.getActiveTab();
-      if (tab) {
-        this.stateManager.updateTab(tab.id, { model: this.modelSelectEl.value });
-        this.applyModelToSession(this.modelSelectEl.value);
-      }
+    this.textareaEl = this.inputWrapperEl.createEl('textarea', {
+      cls: 'codebuddian-input',
+      attr: {
+        placeholder: 'Message CodeBuddy… (Enter to send, Shift+Enter for newline)',
+      },
+    });
+
+    // Floating toolbar inside the input box (bottom-left)
+    const inputToolbar = this.inputWrapperEl.createDiv({ cls: 'codebuddian-input-toolbar-row' });
+
+    // Model pill
+    this.modelMenuGroupEl = inputToolbar.createDiv({ cls: 'codebuddian-pill-group' });
+    this.modelBtnEl = this.modelMenuGroupEl.createEl('button', {
+      cls: 'codebuddian-pill-btn',
+      attr: { type: 'button', 'aria-label': 'Model', 'aria-haspopup': 'true' },
+    });
+    setIcon(this.modelBtnEl.createSpan({ cls: 'codebuddian-pill-icon' }), 'at-sign');
+    this.modelBtnLabelEl = this.modelBtnEl.createSpan({ cls: 'codebuddian-pill-label' });
+    setIcon(this.modelBtnEl.createSpan({ cls: 'codebuddian-pill-caret' }), 'chevron-down');
+    this.modelMenuEl = this.modelMenuGroupEl.createDiv({ cls: 'codebuddian-pill-menu' });
+
+    this.modelBtnEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.closeAllMenus();
+      // Always refresh models from runtime cache before opening the menu,
+      // so changes made in Settings → Detect models are immediately visible.
+      this.refreshModels();
+      this.modelMenuGroupEl.toggleClass('is-open', !this.modelMenuGroupEl.hasClass('is-open'));
     });
 
     // Mode dropdown (Ask / Plan / Craft)
-    const modeGroup = inputToolbar.createDiv({ cls: 'codebuddian-toolbar-group codebuddian-mode-group' });
-
-    this.modeBtnEl = modeGroup.createEl('button', {
+    this.modeMenuGroupEl = inputToolbar.createDiv({ cls: 'codebuddian-pill-group codebuddian-mode-group' });
+    this.modeBtnEl = this.modeMenuGroupEl.createEl('button', {
       cls: 'codebuddian-mode-dropdown-btn',
-      attr: { 'aria-label': 'Mode', 'aria-haspopup': 'true' },
+      attr: { 'aria-label': 'Mode', 'aria-haspopup': 'true', type: 'button' },
     });
     const modeIconEl = this.modeBtnEl.createSpan({ cls: 'codebuddian-mode-dropdown-icon' });
     setIcon(modeIconEl, 'message-circle');
@@ -124,12 +159,11 @@ export class CodebuddianChatView extends ItemView {
     const caretEl = this.modeBtnEl.createSpan({ cls: 'codebuddian-mode-dropdown-caret' });
     setIcon(caretEl, 'chevron-down');
 
-    // Dropdown menu
-    this.modeMenuEl = modeGroup.createDiv({ cls: 'codebuddian-mode-menu' });
+    this.modeMenuEl = this.modeMenuGroupEl.createDiv({ cls: 'codebuddian-mode-menu' });
     for (const modeCfg of MODE_CONFIG) {
       const item = this.modeMenuEl.createEl('button', {
         cls: 'codebuddian-mode-menu-item',
-        attr: { 'data-mode': modeCfg.id, title: modeCfg.desc },
+        attr: { 'data-mode': modeCfg.id, title: modeCfg.desc, type: 'button' },
       });
       const itemIcon = item.createSpan({ cls: 'codebuddian-mode-menu-item-icon' });
       setIcon(itemIcon, modeCfg.icon);
@@ -139,38 +173,48 @@ export class CodebuddianChatView extends ItemView {
       item.addEventListener('click', (e) => {
         e.stopPropagation();
         this.handleSetMode(modeCfg.id);
-        this.closeModeMenu();
+        this.closeAllMenus();
       });
     }
 
-    // Toggle dropdown
     this.modeBtnEl.addEventListener('click', (e) => {
       e.stopPropagation();
-      modeGroup.toggleClass('is-open', !modeGroup.hasClass('is-open'));
+      this.closeAllMenus();
+      this.modeMenuGroupEl.toggleClass('is-open', !this.modeMenuGroupEl.hasClass('is-open'));
     });
 
-    // Close dropdown on outside click
-    this.registerDomEvent(this.containerEl.ownerDocument, 'click', () => {
-      this.closeModeMenu();
+    // Effort pill
+    this.effortMenuGroupEl = inputToolbar.createDiv({ cls: 'codebuddian-pill-group' });
+    this.effortBtnEl = this.effortMenuGroupEl.createEl('button', {
+      cls: 'codebuddian-pill-btn',
+      attr: { type: 'button', 'aria-label': 'Effort', 'aria-haspopup': 'true' },
+    });
+    this.effortBtnLabelEl = this.effortBtnEl.createSpan({ cls: 'codebuddian-pill-label' });
+    setIcon(this.effortBtnEl.createSpan({ cls: 'codebuddian-pill-caret' }), 'chevron-down');
+    this.effortMenuEl = this.effortMenuGroupEl.createDiv({ cls: 'codebuddian-pill-menu' });
+    this.renderEffortMenu();
+
+    this.effortBtnEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.closeAllMenus();
+      this.effortMenuGroupEl.toggleClass('is-open', !this.effortMenuGroupEl.hasClass('is-open'));
     });
 
-    // Effort selector
-    const effortGroup = inputToolbar.createDiv({ cls: 'codebuddian-toolbar-group' });
-    setIcon(effortGroup.createSpan({ cls: 'codebuddian-toolbar-group-icon' }), 'gauge');
-    this.effortSelectEl = effortGroup.createEl('select', { cls: 'codebuddian-select codebuddian-toolbar-select' });
-    EFFORT_OPTIONS.forEach(e => {
-      const opt = this.effortSelectEl.createEl('option', { text: e.label });
-      opt.value = e.id;
+    // Thinking toggle (small icon button)
+    this.thinkBtnEl = inputToolbar.createEl('button', {
+      cls: 'codebuddian-toolbar-btn codebuddian-think-btn',
+      attr: { 'aria-label': 'Toggle thinking mode', title: 'Thinking (shows reasoning)' },
     });
-    this.effortSelectEl.addEventListener('change', () => {
+    setIcon(this.thinkBtnEl, 'brain');
+    this.thinkBtnEl.addEventListener('click', () => {
       const tab = this.stateManager.getActiveTab();
-      if (tab) {
-        this.stateManager.updateTab(tab.id, { effort: this.effortSelectEl.value });
-        this.applyEffortToSession(this.effortSelectEl.value);
-      }
+      if (!tab) return;
+      const newVal = !tab.thinkingEnabled;
+      this.stateManager.updateTab(tab.id, { thinkingEnabled: newVal });
+      this.applyThinkingToSession(newVal);
     });
 
-    // Stop button (inline, only visible during streaming)
+    // Stop button (only visible during streaming)
     this.stopBtnEl = inputToolbar.createEl('button', {
       cls: 'codebuddian-toolbar-btn codebuddian-stop-btn',
       attr: { 'aria-label': 'Stop generation (Esc)' },
@@ -180,17 +224,12 @@ export class CodebuddianChatView extends ItemView {
       this.conversationController.cancel();
     });
 
-    // -- Input wrapper (textarea + send) --
-    this.inputWrapperEl = inputContainer.createDiv({ cls: 'codebuddian-input-wrapper' });
-
-    this.textareaEl = this.inputWrapperEl.createEl('textarea', {
-      cls: 'codebuddian-input',
-      attr: {
-        placeholder: 'Message CodeBuddy… (Enter to send, Shift+Enter for newline)',
-        rows: '1',
-      },
+    // Close dropdowns on outside click
+    this.registerDomEvent(this.containerEl.ownerDocument, 'click', () => {
+      this.closeAllMenus();
     });
 
+    // Send button (bottom-right of input box)
     this.sendButtonEl = this.inputWrapperEl.createEl('button', {
       cls: 'codebuddian-send-btn',
       attr: { 'aria-label': 'Send message' },
@@ -207,7 +246,6 @@ export class CodebuddianChatView extends ItemView {
     );
 
     // Subscribe to state changes — debounce via rAF to prevent flicker
-    // when streaming tokens fire dozens of updates per second.
     this.stateManager.subscribe(() => this.scheduleRender());
 
     // Keyboard shortcuts
@@ -223,17 +261,24 @@ export class CodebuddianChatView extends ItemView {
     // Ensure at least one tab
     this.tabManager.ensureAtLeastOneTab();
 
-    // Try to load real models from SDK once a session exists
-    this.tryLoadModels();
+    // Load cached model list from runtime (reads plugin settings synchronously)
+    this.refreshModels();
+    this.renderModelMenu();
+
+    // Also refresh from SDK once a session is established
+    this.conversationController.onSessionCreated = () => {
+      this.refreshModelsFromSDK();
+    };
   }
 
   async onClose(): Promise<void> {
     await this.conversationController.dispose();
   }
 
-  private closeModeMenu(): void {
-    const grp = this.modeBtnEl?.parentElement;
-    if (grp) grp.removeClass('is-open');
+  private closeAllMenus(): void {
+    this.modelMenuGroupEl?.removeClass('is-open');
+    this.modeMenuGroupEl?.removeClass('is-open');
+    this.effortMenuGroupEl?.removeClass('is-open');
   }
 
   private async handleSetMode(mode: ChatMode): Promise<void> {
@@ -268,6 +313,23 @@ export class CodebuddianChatView extends ItemView {
     }
   }
 
+  /** Apply thinking toggle via SDK session's setConfig. */
+  private async applyThinkingToSession(enabled: boolean): Promise<void> {
+    if (!this.runtime) return;
+    try {
+      const sdkSession = this.runtime.getSdkSession() as { setConfig?(c: Record<string, unknown>): Promise<void> } | null;
+      if (sdkSession?.setConfig) {
+        await sdkSession.setConfig({
+          thinking: enabled
+            ? { type: 'adaptive' }
+            : { type: 'disabled' },
+        });
+      }
+    } catch {
+      // Session may not be connected — setting will apply on next start
+    }
+  }
+
   private createLogoSvg(): SVGSVGElement {
     const ns = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(ns, 'svg');
@@ -284,39 +346,109 @@ export class CodebuddianChatView extends ItemView {
     return svg;
   }
 
-  private renderModelOptions(): void {
-    this.modelSelectEl.empty();
-    for (const m of AVAILABLE_MODELS) {
-      const opt = this.modelSelectEl.createEl('option', { text: m.label });
-      opt.value = m.id;
+  // =========================================================================
+  // Model list management — reads directly from runtime, no plugin reference
+  // =========================================================================
+
+  /**
+   * Refresh model list from runtime's cached models (synchronous).
+   *
+   * The runtime's `getCachedModels()` reads `this.settings.availableModels`
+   * which is the SAME object reference as the plugin's `this.settings`,
+   * so changes made in the Settings tab (Detect models) are immediately
+   * visible here — no need to access the plugin at all.
+   */
+  private refreshModels(): void {
+    if (!this.runtime) {
+      console.log('[codebuddian] refreshModels — no runtime yet');
+      return;
+    }
+    const cached = this.runtime.getCachedModels();
+    console.log('[codebuddian] refreshModels — cached models from runtime:', cached.length);
+    if (cached.length > 0) {
+      this.models = [
+        { id: '', label: 'Default' },
+        ...cached.map(m => ({ id: m.id, label: m.name || m.id })),
+      ];
+      this.renderModelMenu();
+
+      // Update model pill label if a model is selected
+      const activeTab = this.stateManager.getActiveTab();
+      if (activeTab?.model) {
+        const modelLabel = this.models.find(m => m.id === activeTab.model)?.label ?? activeTab.model;
+        this.modelBtnLabelEl.setText(modelLabel);
+      }
     }
   }
 
-  /** Attempt to fetch real model list from the runtime once a session is active. */
-  private async tryLoadModels(): Promise<void> {
-    if (this.modelsLoaded) return;
+  /**
+   * Fetch live model list from the SDK session and update the selector.
+   * Called after a session is established.
+   */
+  private async refreshModelsFromSDK(): Promise<void> {
+    if (!this.runtime) return;
 
-    for (let i = 0; i < 10; i++) {
-      await new Promise(r => setTimeout(r, 800));
-      if (!this.runtime) continue;
+    try {
+      const models = await this.runtime.getAvailableModels();
+      if (models.length > 0) {
+        this.models = [
+          { id: '', label: 'Default' },
+          ...models.map(m => ({ id: m.id, label: m.name || m.id })),
+        ];
+        this.renderModelMenu();
 
-      try {
-        const models = await this.runtime.getAvailableModels();
-        if (models.length > 0) {
-          const { setAvailableModels } = await import('./constants');
-          setAvailableModels(models.map(m => ({ id: m.id, label: m.name })));
-          this.renderModelOptions();
-
-          const activeTab = this.stateManager.getActiveTab();
-          if (activeTab) {
-            this.modelSelectEl.value = activeTab.model;
-          }
-          this.modelsLoaded = true;
-          break;
+        const activeTab = this.stateManager.getActiveTab();
+        if (activeTab?.model) {
+          const modelLabel = this.models.find(m => m.id === activeTab.model)?.label ?? activeTab.model;
+          this.modelBtnLabelEl.setText(modelLabel);
         }
-      } catch {
-        // Ignore — will retry
+        console.log(`[codebuddian] Loaded ${models.length} models from SDK:`,
+          models.map(m => m.name).join(', '));
       }
+    } catch (e) {
+      console.warn('[codebuddian] refreshModelsFromSDK failed:', e);
+    }
+  }
+
+  private renderModelMenu(): void {
+    this.modelMenuEl.empty();
+    console.log('[codebuddian] renderModelMenu — models count:', this.models.length);
+    for (const m of this.models) {
+      const item = this.modelMenuEl.createEl('button', {
+        cls: 'codebuddian-pill-menu-item',
+        attr: { 'data-value': m.id, type: 'button' },
+      });
+      item.setText(m.label);
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const tab = this.stateManager.getActiveTab();
+        if (tab) {
+          this.stateManager.updateTab(tab.id, { model: m.id });
+          this.applyModelToSession(m.id);
+          console.log('[codebuddian] Model selected:', m.id, m.label);
+        }
+        this.closeAllMenus();
+      });
+    }
+  }
+
+  private renderEffortMenu(): void {
+    this.effortMenuEl.empty();
+    for (const e of EFFORT_OPTIONS) {
+      const item = this.effortMenuEl.createEl('button', {
+        cls: 'codebuddian-pill-menu-item',
+        attr: { 'data-value': e.id, type: 'button' },
+      });
+      item.setText(e.label);
+      item.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const tab = this.stateManager.getActiveTab();
+        if (tab) {
+          this.stateManager.updateTab(tab.id, { effort: e.id });
+          this.applyEffortToSession(e.id);
+        }
+        this.closeAllMenus();
+      });
     }
   }
 
@@ -346,8 +478,13 @@ export class CodebuddianChatView extends ItemView {
     // Sync controls with active tab
     const activeTab = this.stateManager.getActiveTab();
     if (activeTab) {
-      this.modelSelectEl.value = activeTab.model;
-      this.effortSelectEl.value = activeTab.effort;
+      // Model pill — use local this.models instead of global AVAILABLE_MODELS
+      const modelLabel = this.models.find(m => m.id === activeTab.model)?.label ?? activeTab.model;
+      this.modelBtnLabelEl.setText(modelLabel);
+
+      // Effort pill
+      const effortLabel = EFFORT_OPTIONS.find(e => e.id === activeTab.effort)?.label ?? activeTab.effort;
+      this.effortBtnLabelEl.setText(effortLabel);
 
       // Mode dropdown — update button label/icon and active item
       const activeModeCfg = MODE_CONFIG.find(m => m.id === activeTab.mode) ?? MODE_CONFIG[0];
@@ -359,9 +496,21 @@ export class CodebuddianChatView extends ItemView {
       this.modeBtnLabelEl.setText(activeModeCfg.label);
       this.modeBtnEl.setAttribute('data-mode', activeModeCfg.id);
 
-      // Highlight active item in menu
+      // Highlight active item in mode menu
       this.modeMenuEl.querySelectorAll('.codebuddian-mode-menu-item').forEach((el) => {
         const isSelected = el.getAttribute('data-mode') === activeTab.mode;
+        el.toggleClass('is-active', isSelected);
+      });
+
+      // Highlight active model item
+      this.modelMenuEl.querySelectorAll('.codebuddian-pill-menu-item').forEach((el) => {
+        const isSelected = el.getAttribute('data-value') === activeTab.model;
+        el.toggleClass('is-active', isSelected);
+      });
+
+      // Highlight active effort item
+      this.effortMenuEl.querySelectorAll('.codebuddian-pill-menu-item').forEach((el) => {
+        const isSelected = el.getAttribute('data-value') === activeTab.effort;
         el.toggleClass('is-active', isSelected);
       });
 
@@ -375,6 +524,9 @@ export class CodebuddianChatView extends ItemView {
 
       // Send button state
       this.sendButtonEl.toggleClass('is-disabled', isStreaming);
+
+      // Thinking button state
+      this.thinkBtnEl?.toggleClass('is-active', activeTab.thinkingEnabled);
     }
 
     // Render messages for active tab

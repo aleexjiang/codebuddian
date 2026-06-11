@@ -1,6 +1,8 @@
 import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
 import type { CodebuddianPlugin } from '../../main';
 import { CliDetector } from '../../providers/codebuddy/cli-detect';
+import { CodebuddyChatRuntime } from '../../providers/codebuddy/runtime/CodebuddyChatRuntime';
+import { ApprovalManager } from '../../core/security/ApprovalManager';
 
 export class CodebuddianSettingsTab extends PluginSettingTab {
 	private plugin: CodebuddianPlugin;
@@ -52,6 +54,48 @@ export class CodebuddianSettingsTab extends PluginSettingTab {
 					this.plugin.settings.model = value;
 					await this.plugin.saveSettings();
 				}));
+
+		// Detect models button
+		new Setting(containerEl)
+			.setName('Available models')
+			.setDesc('Detect models from CodeBuddy CLI and cache them for the model selector')
+			.addButton(btn => btn
+				.setButtonText('Detect models')
+				.onClick(async () => {
+					btn.setDisabled(true);
+					btn.setButtonText('Detecting...');
+					try {
+						const vaultPath = (this.app.vault.adapter as any).getBasePath?.() ?? '';
+						const runtime = new CodebuddyChatRuntime(
+							this.plugin.settings,
+							new ApprovalManager(),
+							vaultPath,
+						);
+						const session = await runtime.start({ cwd: vaultPath || process.cwd() });
+						const models = await runtime.getAvailableModels();
+						await session.close();
+						await runtime.dispose();
+
+						this.plugin.settings.availableModels = models.map(m => ({ id: m.id, name: m.name }));
+						await this.plugin.saveSettings();
+						this.display();
+						new Notice(`Found ${models.length} models`);
+					} catch (e) {
+						new Notice(`Failed: ${e instanceof Error ? e.message : String(e)}`);
+					} finally {
+						btn.setDisabled(false);
+						btn.setButtonText('Detect models');
+					}
+				}));
+
+		// Show cached models if any
+		if (this.plugin.settings.availableModels.length > 0) {
+			const modelsEl = containerEl.createDiv({ cls: 'codebuddian-detected-models' });
+			modelsEl.createEl('small', {
+				text: `Cached: ${this.plugin.settings.availableModels.map(m => m.name || m.id).join(', ')}`,
+				cls: 'codebuddian-muted-text',
+			});
+		}
 
 		new Setting(containerEl)
 			.setName('Permission mode')

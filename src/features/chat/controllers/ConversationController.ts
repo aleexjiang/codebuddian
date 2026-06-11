@@ -15,6 +15,8 @@ export class ConversationController {
   private sessionHandle: SessionHandle | null = null;
   private streamController: StreamController;
   private runtime: ChatRuntime | null = null;
+  /** Callback fired once after a session is successfully created. */
+  onSessionCreated: (() => void) | null = null;
 
   constructor(private stateManager: ChatStateManager) {
     this.streamController = new StreamController(stateManager);
@@ -25,8 +27,11 @@ export class ConversationController {
   }
 
   async sendMessage(text: string, mentions?: UserInput['mentions'], instruction?: string): Promise<void> {
-    const tab = this.stateManager.getActiveTab();
-    if (!tab) return;
+    // Auto-create a tab if none exists (e.g. first message from default view)
+    let tab = this.stateManager.getActiveTab();
+    if (!tab) {
+      tab = this.stateManager.addTab();
+    }
 
     // Add user message to UI
     const userMsg: ChatMessage = {
@@ -57,9 +62,12 @@ export class ConversationController {
           cwd: '', // Will be set by main.ts
           model: tab.model || undefined,
           effort: tab.effort || undefined,
+          thinkingEnabled: tab.thinkingEnabled,
           permissionMode: tab.permissionMode,
         });
         this.setupEventListeners(tab.id);
+        // Notify view that a session is available (for model list loading etc.)
+        this.onSessionCreated?.();
       } catch (err) {
         this.stateManager.updateTab(tab.id, { status: 'error' });
 
@@ -79,7 +87,7 @@ export class ConversationController {
         const errorMsg: ChatMessage = {
           id: `msg-${Date.now()}`,
           role: 'system',
-          content: `❌ 启动会话失败\n\n${diagnostic}`,
+          content: `Failed to start session\n\n${diagnostic}`,
           timestamp: Date.now(),
         };
         this.stateManager.addMessage(tab.id, errorMsg);
@@ -96,7 +104,39 @@ export class ConversationController {
     try {
       await this.sessionHandle?.send(input);
     } catch (err) {
-      this.stateManager.updateTab(tab.id, { status: 'error' });
+      // The session may have been broken after a cancel/interrupt.
+      // Try to recreate the session and resend.
+      logger.warn('[ConversationController] Send failed, attempting session recovery:', err);
+      try {
+        await this.sessionHandle?.close();
+      } catch {}
+      this.sessionHandle = null;
+
+      if (this.runtime) {
+        try {
+          this.sessionHandle = await this.runtime.start({
+            cwd: '',
+            model: tab.model || undefined,
+            effort: tab.effort || undefined,
+            thinkingEnabled: tab.thinkingEnabled,
+            permissionMode: tab.permissionMode,
+          });
+          this.setupEventListeners(tab.id);
+          this.onSessionCreated?.();
+          await this.sessionHandle.send(input);
+        } catch (retryErr) {
+          this.stateManager.updateTab(tab.id, { status: 'error' });
+          const errorMsg: ChatMessage = {
+            id: `msg-${Date.now()}`,
+            role: 'system',
+            content: `Failed to reconnect session: ${retryErr instanceof Error ? retryErr.message : String(retryErr)}`,
+            timestamp: Date.now(),
+          };
+          this.stateManager.addMessage(tab.id, errorMsg);
+        }
+      } else {
+        this.stateManager.updateTab(tab.id, { status: 'error' });
+      }
     }
   }
 
@@ -117,7 +157,7 @@ export class ConversationController {
     const interruptedMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
       role: 'system',
-      content: '⏹ Interrupted · What should CodeBuddy do instead?',
+      content: 'Interrupted. What should CodeBuddy do instead?',
       timestamp: Date.now(),
     };
     this.stateManager.addMessage(tab.id, interruptedMsg);

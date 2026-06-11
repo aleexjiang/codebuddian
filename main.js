@@ -37,40 +37,6 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 ));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-// src/features/chat/constants.ts
-var constants_exports = {};
-__export(constants_exports, {
-  AUTO_SCROLL_THRESHOLD: () => AUTO_SCROLL_THRESHOLD,
-  AVAILABLE_MODELS: () => AVAILABLE_MODELS,
-  CHAT_ICON: () => CHAT_ICON,
-  CHAT_VIEW_TYPE: () => CHAT_VIEW_TYPE,
-  EFFORT_OPTIONS: () => EFFORT_OPTIONS,
-  MAX_INPUT_HEIGHT: () => MAX_INPUT_HEIGHT,
-  MIN_INPUT_HEIGHT: () => MIN_INPUT_HEIGHT,
-  setAvailableModels: () => setAvailableModels
-});
-function setAvailableModels(models) {
-  AVAILABLE_MODELS = [{ id: "", label: "Default (CLI default)" }, ...models];
-}
-var CHAT_VIEW_TYPE, CHAT_ICON, MAX_INPUT_HEIGHT, MIN_INPUT_HEIGHT, AUTO_SCROLL_THRESHOLD, AVAILABLE_MODELS, EFFORT_OPTIONS;
-var init_constants = __esm({
-  "src/features/chat/constants.ts"() {
-    CHAT_VIEW_TYPE = "codebuddian-chat";
-    CHAT_ICON = "message-circle";
-    MAX_INPUT_HEIGHT = 200;
-    MIN_INPUT_HEIGHT = 40;
-    AUTO_SCROLL_THRESHOLD = 100;
-    AVAILABLE_MODELS = [
-      { id: "", label: "Default (CLI default)" }
-    ];
-    EFFORT_OPTIONS = [
-      { id: "low", label: "Low" },
-      { id: "medium", label: "Medium" },
-      { id: "high", label: "High" }
-    ];
-  }
-});
-
 // node_modules/@tencent-ai/agent-sdk/lib/_internal/query-controller.js
 var require_query_controller = __commonJS({
   "node_modules/@tencent-ai/agent-sdk/lib/_internal/query-controller.js"(exports) {
@@ -34112,13 +34078,13 @@ var require_core3 = __commonJS({
     }, warn() {
     }, error() {
     } };
-    function getLogger(logger2) {
-      if (logger2 === false)
+    function getLogger(logger3) {
+      if (logger3 === false)
         return noLogs;
-      if (logger2 === void 0)
+      if (logger3 === void 0)
         return console;
-      if (logger2.log && logger2.warn && logger2.error)
-        return logger2;
+      if (logger3.log && logger3.warn && logger3.error)
+        return logger3;
       throw new Error("logger must implement log, warn and error methods");
     }
     var KEYWORD_NAME = /^[a-z_$][a-z0-9_$:-]*$/i;
@@ -40010,13 +39976,13 @@ var require_core5 = __commonJS({
     }, warn() {
     }, error() {
     } };
-    function getLogger(logger2) {
-      if (logger2 === false)
+    function getLogger(logger3) {
+      if (logger3 === false)
         return noLogs;
-      if (logger2 === void 0)
+      if (logger3 === void 0)
         return console;
-      if (logger2.log && logger2.warn && logger2.error)
-        return logger2;
+      if (logger3.log && logger3.warn && logger3.error)
+        return logger3;
       throw new Error("logger must implement log, warn and error methods");
     }
     var KEYWORD_NAME = /^[a-z_$][a-z0-9_$:-]*$/i;
@@ -44679,13 +44645,13 @@ var InlineEditModal_exports = {};
 __export(InlineEditModal_exports, {
   InlineEditModal: () => InlineEditModal
 });
-var import_obsidian5, import_agent_sdk2, InlineEditModal;
+var import_obsidian6, import_agent_sdk2, InlineEditModal;
 var init_InlineEditModal = __esm({
   "src/features/inline-edit/ui/InlineEditModal.ts"() {
-    import_obsidian5 = require("obsidian");
+    import_obsidian6 = require("obsidian");
     import_agent_sdk2 = __toESM(require_lib());
     init_DiffRenderer();
-    InlineEditModal = class extends import_obsidian5.Modal {
+    InlineEditModal = class extends import_obsidian6.Modal {
       originalText;
       modifiedText = "";
       diffSegments = [];
@@ -44703,7 +44669,7 @@ var init_InlineEditModal = __esm({
         this.cliPath = opts.cliPath;
         this.vaultPath = opts.vaultPath;
         this.onApply = opts.onApply;
-        this.component = new import_obsidian5.Component();
+        this.component = new import_obsidian6.Component();
       }
       onOpen() {
         const { contentEl } = this;
@@ -44789,7 +44755,7 @@ __export(main_exports, {
   default: () => main_default
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian6 = require("obsidian");
+var import_obsidian7 = require("obsidian");
 
 // src/app/settings/defaultSettings.ts
 var DEFAULT_SETTINGS = {
@@ -44812,12 +44778,21 @@ var DEFAULT_SETTINGS = {
   debugMode: false,
   verboseMode: false,
   includePartialMessages: false,
-  strictMcpConfig: false
+  strictMcpConfig: false,
+  availableModels: []
 };
 
 // src/features/chat/CodebuddianView.ts
-var import_obsidian2 = require("obsidian");
-init_constants();
+var import_obsidian3 = require("obsidian");
+
+// src/features/chat/constants.ts
+var CHAT_VIEW_TYPE = "codebuddian-chat";
+var CHAT_ICON = "message-circle";
+var EFFORT_OPTIONS = [
+  { id: "low", label: "Low" },
+  { id: "medium", label: "Medium" },
+  { id: "high", label: "High" }
+];
 
 // src/features/chat/state/types.ts
 function createEmptyTab(id) {
@@ -44831,6 +44806,7 @@ function createEmptyTab(id) {
     sessionId: null,
     model: "",
     effort: "medium",
+    thinkingEnabled: false,
     createdAt: Date.now(),
     updatedAt: Date.now()
   };
@@ -45014,19 +44990,22 @@ var TabBar = class {
 };
 
 // src/features/chat/rendering/MessageRenderer.ts
+var import_obsidian2 = require("obsidian");
+
+// src/features/chat/rendering/ToolCallRenderer.ts
 var import_obsidian = require("obsidian");
 
 // src/core/tools/toolIcons.ts
 var TOOL_ICONS = {
-  Read: "\u{1F4D6}",
-  Write: "\u270F\uFE0F",
-  Edit: "\u{1F527}",
-  Bash: "\u{1F4BB}",
-  Glob: "\u{1F50D}",
-  Grep: "\u{1F50E}",
-  WebFetch: "\u{1F310}",
-  WebSearch: "\u{1F52C}",
-  ImageGen: "\u{1F3A8}"
+  Read: "file-text",
+  Write: "edit-3",
+  Edit: "cb-wrench",
+  Bash: "terminal",
+  Glob: "search",
+  Grep: "file-search",
+  WebFetch: "globe",
+  WebSearch: "zoom-in",
+  ImageGen: "image"
 };
 
 // src/core/tools/toolInput.ts
@@ -45051,6 +45030,28 @@ function formatToolResult(tool, result, ok) {
 }
 
 // src/features/chat/rendering/ToolCallRenderer.ts
+var STATUS_ICON = {
+  pending: "cb-status-pending",
+  running: "cb-status-running",
+  completed: "cb-status-completed",
+  error: "cb-status-error",
+  approval_needed: "cb-status-warning"
+};
+function extractFileRef(args) {
+  const candidates = [
+    args.file_path,
+    args.path,
+    args.filePath,
+    args.file,
+    args.target
+  ];
+  for (const c of candidates) {
+    if (typeof c === "string" && c.length > 0) return c;
+  }
+  const nested = args.file;
+  if (nested && typeof nested.path === "string") return nested.path;
+  return null;
+}
 var ToolCallRenderer = class {
   containerEl;
   constructor(containerEl) {
@@ -45059,19 +45060,24 @@ var ToolCallRenderer = class {
   render(toolCall, result) {
     const el = this.containerEl.createDiv({ cls: "codebuddian-tool-call" });
     const headerEl = el.createDiv({ cls: "codebuddian-tool-header" });
-    const icon = TOOL_ICONS[toolCall.tool] || "\u{1F527}";
-    headerEl.createSpan({ text: `${icon} ${toolCall.tool}`, cls: "codebuddian-tool-name" });
-    const statusColors = {
-      pending: "\u{1F7E1}",
-      running: "\u{1F535}",
-      completed: "\u{1F7E2}",
-      error: "\u{1F534}",
-      approval_needed: "\u26A0\uFE0F"
-    };
-    headerEl.createSpan({
-      text: statusColors[toolCall.status] || "\u26AA",
-      cls: "codebuddian-tool-status"
+    const nameSpan = headerEl.createSpan({ cls: "codebuddian-tool-name" });
+    const toolIcon = nameSpan.createSpan({ cls: "codebuddian-tool-name-icon" });
+    const iconName = TOOL_ICONS[toolCall.tool] || "cb-wrench";
+    (0, import_obsidian.setIcon)(toolIcon, iconName);
+    nameSpan.createSpan({ text: toolCall.tool });
+    const fileRef = extractFileRef(toolCall.args);
+    if (fileRef) {
+      const tagEl = headerEl.createSpan({ cls: "codebuddian-tool-file-tag" });
+      const tagIcon = tagEl.createSpan({ cls: "codebuddian-tool-file-tag-icon" });
+      (0, import_obsidian.setIcon)(tagIcon, "file-text");
+      tagEl.createSpan({ text: fileRef.split("/").pop() || fileRef });
+    }
+    const statusSpan = headerEl.createSpan({
+      cls: `codebuddian-tool-status codebuddian-tool-status-${toolCall.status}`,
+      attr: { "aria-label": `Status: ${toolCall.status}` }
     });
+    const statusIcon = statusSpan.createSpan({ cls: "codebuddian-tool-status-icon" });
+    (0, import_obsidian.setIcon)(statusIcon, STATUS_ICON[toolCall.status] || "cb-status-pending");
     const argsEl = el.createDiv({ cls: "codebuddian-tool-args" });
     const inputStr = formatToolInput(toolCall.tool, toolCall.args);
     const argsPre = argsEl.createEl("pre", { cls: "codebuddian-tool-args-pre" });
@@ -45093,19 +45099,19 @@ var ToolCallRenderer = class {
     const el = this.containerEl.createDiv({ cls: "codebuddian-approval-card" });
     el.createDiv({
       cls: "codebuddian-approval-header",
-      text: `\u26A0\uFE0F Approval Required: ${toolCall.tool}`
+      text: `Approval required: ${toolCall.tool}`
     });
     const argsEl = el.createDiv({ cls: "codebuddian-approval-args" });
     const inputStr = formatToolInput(toolCall.tool, toolCall.args);
     argsEl.createEl("pre", { text: inputStr });
     const btnRow = el.createDiv({ cls: "codebuddian-approval-buttons" });
     const approveBtn = btnRow.createEl("button", {
-      text: "\u2705 Approve",
+      text: "Approve",
       cls: "codebuddian-btn codebuddian-btn-approve"
     });
     approveBtn.addEventListener("click", onApprove);
     const denyBtn = btnRow.createEl("button", {
-      text: "\u274C Deny",
+      text: "Deny",
       cls: "codebuddian-btn codebuddian-btn-deny"
     });
     denyBtn.addEventListener("click", onDeny);
@@ -45120,6 +45126,8 @@ var MessageRenderer = class {
   app;
   rendered = /* @__PURE__ */ new Map();
   hasWelcome = false;
+  // Track expanded/collapsed state of thinking blocks per message
+  thinkingExpanded = /* @__PURE__ */ new Map();
   constructor(containerEl, component, app) {
     this.containerEl = containerEl;
     this.component = component;
@@ -45131,10 +45139,8 @@ var MessageRenderer = class {
     const toolStatuses = message.toolCalls?.map((t) => `${t.id}:${t.status}`).join("|") ?? "";
     return [
       message.role,
-      message.thinkingContent ?? "",
       toolCount,
-      toolStatuses,
-      message.isStreaming ? "S" : "F"
+      toolStatuses
     ].join("::");
   }
   renderMessages(messages) {
@@ -45175,32 +45181,58 @@ var MessageRenderer = class {
           prevEl = newRendered.el;
         }
       } else {
-        if (message.content !== existing.lastContent && existing.contentEl) {
-          if (message.role === "assistant" && message.isStreaming) {
-            existing.contentEl.textContent = message.content;
-            existing.isStreamingRender = true;
-          } else if (message.role === "assistant" && !message.isStreaming) {
-            existing.contentEl.empty();
-            import_obsidian.MarkdownRenderer.render(
-              this.app,
-              message.content,
-              existing.contentEl,
-              "",
-              this.component
-            );
-            existing.isStreamingRender = false;
-          } else {
-            existing.contentEl.textContent = message.content;
+        const msgBubble = existing.el.querySelector(".codebuddian-message-assistant, .codebuddian-message-user, .codebuddian-message-system");
+        const target = msgBubble || existing.el;
+        if (!existing.contentEl && message.content != null) {
+          existing.contentEl = target.createDiv({ cls: "codebuddian-message-content" });
+        }
+        if (existing.contentEl) {
+          const contentChanged = message.content !== existing.lastContent;
+          const streamStateChanged = message.role === "assistant" && message.isStreaming !== existing.isStreamingRender;
+          if (contentChanged || streamStateChanged) {
+            if (message.role === "assistant" && message.isStreaming) {
+              existing.contentEl.textContent = message.content;
+              existing.isStreamingRender = true;
+            } else if (message.role === "assistant" && !message.isStreaming) {
+              existing.contentEl.empty();
+              import_obsidian2.MarkdownRenderer.render(
+                this.app,
+                message.content,
+                existing.contentEl,
+                "",
+                this.component
+              );
+              existing.isStreamingRender = false;
+            } else {
+              existing.contentEl.textContent = message.content;
+            }
+            existing.lastContent = message.content;
           }
-          existing.lastContent = message.content;
+        }
+        if (message.thinkingContent && existing.thinkingEl) {
+          const thinkContentEl = existing.thinkingEl.querySelector(".codebuddian-thinking-content");
+          if (thinkContentEl) {
+            thinkContentEl.textContent = message.thinkingContent;
+          }
         }
         prevEl = existing.el;
       }
     }
     for (const [id, rendered] of this.rendered) {
       if (!seenIds.has(id)) {
+        this.removeIndicator(rendered);
         rendered.el.remove();
         this.rendered.delete(id);
+        this.thinkingExpanded.delete(id);
+      }
+    }
+    for (const message of messages) {
+      const rendered = this.rendered.get(message.id);
+      if (!rendered) continue;
+      if (message.isStreaming && message.role === "assistant") {
+        this.ensureIndicator(rendered);
+      } else {
+        this.removeIndicator(rendered);
       }
     }
   }
@@ -45209,31 +45241,36 @@ var MessageRenderer = class {
     if (message.role === "system" && (!message.content || message.content.trim().length === 0)) {
       return null;
     }
-    const msgEl = this.containerEl.createDiv({
+    const rowEl = this.containerEl.createDiv({
+      cls: `codebuddian-message-row codebuddian-message-row-${message.role}`
+    });
+    if (message.role === "user" || message.role === "assistant") {
+      const avatarEl = rowEl.createDiv({
+        cls: `codebuddian-message-avatar codebuddian-message-avatar-${message.role}`
+      });
+      if (message.role === "user") {
+        (0, import_obsidian2.setIcon)(avatarEl, "user");
+      } else {
+        avatarEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><circle cx="8" cy="15" r="1.5"/><circle cx="16" cy="15" r="1.5"/></svg>`;
+      }
+    }
+    const msgEl = rowEl.createDiv({
       cls: `codebuddian-message codebuddian-message-${message.role}`
     });
-    const headerEl = msgEl.createDiv({ cls: "codebuddian-message-header" });
-    const roleLabel = message.role === "user" ? "\u{1F464} You" : message.role === "assistant" ? "\u{1F916} CodeBuddy" : "\u{1F4A1}";
-    headerEl.createSpan({ text: roleLabel, cls: "codebuddian-message-role" });
-    headerEl.createSpan({
-      text: new Date(message.timestamp).toLocaleTimeString(),
-      cls: "codebuddian-message-time"
-    });
+    let thinkingEl = null;
     if (message.thinkingContent) {
-      const thinkingEl = msgEl.createDiv({ cls: "codebuddian-thinking" });
-      thinkingEl.createDiv({ cls: "codebuddian-thinking-header", text: "\u{1F4AD} Thinking" });
-      thinkingEl.createDiv({ cls: "codebuddian-thinking-content", text: message.thinkingContent });
+      thinkingEl = this.renderThinkingBlock(msgEl, message);
     }
     let contentEl = null;
     let isStreamingRender = false;
-    if (message.content) {
+    if (message.content != null) {
       contentEl = msgEl.createDiv({ cls: "codebuddian-message-content" });
       if (message.role === "assistant") {
         if (message.isStreaming) {
           contentEl.textContent = message.content;
           isStreamingRender = true;
         } else {
-          import_obsidian.MarkdownRenderer.render(
+          import_obsidian2.MarkdownRenderer.render(
             this.app,
             message.content,
             contentEl,
@@ -45259,19 +45296,43 @@ var MessageRenderer = class {
         toolRenderer.render(toolCall);
       }
     }
-    if (message.isStreaming) {
-      const streamEl = msgEl.createDiv({ cls: "codebuddian-streaming-indicator" });
-      streamEl.createSpan({ text: "\u25CF" });
-      streamEl.createSpan({ text: "\u25CF" });
-      streamEl.createSpan({ text: "\u25CF" });
-    }
     return {
-      el: msgEl,
+      el: rowEl,
       contentEl,
       signature: this.buildSignature(message),
       lastContent: message.content,
-      isStreamingRender
+      isStreamingRender,
+      indicatorEl: null,
+      thinkingEl
     };
+  }
+  /** Render a collapsible thinking block (Claudian-style). */
+  renderThinkingBlock(parentEl, message) {
+    const isExpanded = this.thinkingExpanded.get(message.id) ?? false;
+    const thinkingEl = parentEl.createDiv({
+      cls: `codebuddian-thinking ${isExpanded ? "is-expanded" : ""}`
+    });
+    const toggleBtn = thinkingEl.createEl("button", {
+      cls: "codebuddian-thinking-toggle",
+      attr: { type: "button" }
+    });
+    const thinkIcon = toggleBtn.createSpan({ cls: "codebuddian-thinking-toggle-icon" });
+    (0, import_obsidian2.setIcon)(thinkIcon, "sparkles");
+    const labelSpan = toggleBtn.createSpan({ text: "Thought" });
+    const durationSpan = toggleBtn.createSpan({ cls: "codebuddian-thinking-duration" });
+    durationSpan.setText(message.isStreaming ? "" : " \u2022 done");
+    const caretSpan = toggleBtn.createSpan({ cls: "codebuddian-thinking-toggle-caret" });
+    (0, import_obsidian2.setIcon)(caretSpan, "chevron-down");
+    const contentEl = thinkingEl.createDiv({
+      cls: "codebuddian-thinking-content",
+      text: message.thinkingContent ?? ""
+    });
+    toggleBtn.addEventListener("click", () => {
+      const expanded = thinkingEl.hasClass("is-expanded");
+      thinkingEl.toggleClass("is-expanded", !expanded);
+      this.thinkingExpanded.set(message.id, !expanded);
+    });
+    return thinkingEl;
   }
   renderWelcome() {
     const welcome = this.containerEl.createDiv({ cls: "codebuddian-welcome" });
@@ -45292,15 +45353,46 @@ var MessageRenderer = class {
       text: "How can I help you today?"
     });
     const tipsEl = welcome.createDiv({ cls: "codebuddian-welcome-tips" });
-    tipsEl.createDiv({ text: "\u{1F4A1} Use @ to mention files, # for instructions" });
-    tipsEl.createDiv({ text: "\u2318 Press Enter to send, Shift+Enter for newline" });
-    tipsEl.createDiv({ text: "\u{1F6D1} Press Esc to stop generation" });
+    const tip1 = tipsEl.createDiv({ cls: "codebuddian-welcome-tip" });
+    const tip1Icon = tip1.createSpan({ cls: "codebuddian-welcome-tip-icon" });
+    (0, import_obsidian2.setIcon)(tip1Icon, "at-sign");
+    tip1.createSpan({ text: "Use @ to mention files, # for instructions" });
+    const tip2 = tipsEl.createDiv({ cls: "codebuddian-welcome-tip" });
+    const tip2Icon = tip2.createSpan({ cls: "codebuddian-welcome-tip-icon" });
+    (0, import_obsidian2.setIcon)(tip2Icon, "cb-keyboard");
+    tip2.createSpan({ text: "Enter to send, Shift+Enter for newline" });
+    const tip3 = tipsEl.createDiv({ cls: "codebuddian-welcome-tip" });
+    const tip3Icon = tip3.createSpan({ cls: "codebuddian-welcome-tip-icon" });
+    (0, import_obsidian2.setIcon)(tip3Icon, "cb-status-stop");
+    tip3.createSpan({ text: "Esc to stop generation" });
   }
   /** Reset all cached state (called when switching tabs). */
   reset() {
+    for (const rendered of this.rendered.values()) {
+      this.removeIndicator(rendered);
+    }
     this.containerEl.empty();
     this.rendered.clear();
+    this.thinkingExpanded.clear();
     this.hasWelcome = false;
+  }
+  /** Create a streaming indicator on a message element (idempotent). */
+  ensureIndicator(rendered) {
+    if (rendered.indicatorEl) return;
+    const msgBubble = rendered.el.querySelector(".codebuddian-message-assistant");
+    const target = msgBubble || rendered.el;
+    const streamEl = target.createDiv({ cls: "codebuddian-streaming-indicator" });
+    streamEl.createSpan({ cls: "codebuddian-dot" });
+    streamEl.createSpan({ cls: "codebuddian-dot" });
+    streamEl.createSpan({ cls: "codebuddian-dot" });
+    rendered.indicatorEl = streamEl;
+  }
+  /** Remove streaming indicator if present. */
+  removeIndicator(rendered) {
+    if (rendered.indicatorEl) {
+      rendered.indicatorEl.remove();
+      rendered.indicatorEl = null;
+    }
   }
 };
 
@@ -45335,10 +45427,10 @@ var StreamController = class {
       case "thinking": {
         const data = event.data;
         const tab = this.stateManager.getActiveTab();
-        if (tab) {
+        if (tab && tab.thinkingEnabled) {
           const lastAssistant = [...tab.messages].reverse().find((m) => m.role === "assistant");
           if (lastAssistant) {
-            lastAssistant.thinkingContent = data.content || "";
+            lastAssistant.thinkingContent = (lastAssistant.thinkingContent || "") + (data.content || "");
             this.stateManager.updateTab(tabId, {});
           }
         }
@@ -45398,7 +45490,7 @@ var StreamController = class {
         const errorMsg = {
           id: `msg-${Date.now()}`,
           role: "system",
-          content: `\u274C Error: ${data.message || data.stderr || "Unknown error"}`,
+          content: `Error: ${data.message || data.stderr || "Unknown error"}`,
           timestamp: event.timestamp
         };
         this.stateManager.addMessage(tabId, errorMsg);
@@ -45412,10 +45504,8 @@ var StreamController = class {
   }
   /** Finalize the current streaming message on cancel/interrupt. */
   finalizeOnCancel(tabId) {
-    if (this.currentAssistantContent) {
-      this.stateManager.finalizeLastAssistantMessage(tabId);
-      this.currentAssistantContent = "";
-    }
+    this.stateManager.finalizeLastAssistantMessage(tabId);
+    this.currentAssistantContent = "";
   }
 };
 
@@ -45433,12 +45523,16 @@ var ConversationController = class {
   sessionHandle = null;
   streamController;
   runtime = null;
+  /** Callback fired once after a session is successfully created. */
+  onSessionCreated = null;
   setRuntime(runtime) {
     this.runtime = runtime;
   }
   async sendMessage(text, mentions, instruction) {
-    const tab = this.stateManager.getActiveTab();
-    if (!tab) return;
+    let tab = this.stateManager.getActiveTab();
+    if (!tab) {
+      tab = this.stateManager.addTab();
+    }
     const userMsg = {
       id: `msg-${Date.now()}`,
       role: "user",
@@ -45464,9 +45558,11 @@ var ConversationController = class {
           // Will be set by main.ts
           model: tab.model || void 0,
           effort: tab.effort || void 0,
+          thinkingEnabled: tab.thinkingEnabled,
           permissionMode: tab.permissionMode
         });
         this.setupEventListeners(tab.id);
+        this.onSessionCreated?.();
       } catch (err) {
         this.stateManager.updateTab(tab.id, { status: "error" });
         let diagnostic = err instanceof Error ? err.message : String(err);
@@ -45480,7 +45576,7 @@ var ConversationController = class {
         const errorMsg = {
           id: `msg-${Date.now()}`,
           role: "system",
-          content: `\u274C \u542F\u52A8\u4F1A\u8BDD\u5931\u8D25
+          content: `Failed to start session
 
 ${diagnostic}`,
           timestamp: Date.now()
@@ -45494,7 +45590,37 @@ ${diagnostic}`,
     try {
       await this.sessionHandle?.send(input);
     } catch (err) {
-      this.stateManager.updateTab(tab.id, { status: "error" });
+      logger.warn("[ConversationController] Send failed, attempting session recovery:", err);
+      try {
+        await this.sessionHandle?.close();
+      } catch {
+      }
+      this.sessionHandle = null;
+      if (this.runtime) {
+        try {
+          this.sessionHandle = await this.runtime.start({
+            cwd: "",
+            model: tab.model || void 0,
+            effort: tab.effort || void 0,
+            thinkingEnabled: tab.thinkingEnabled,
+            permissionMode: tab.permissionMode
+          });
+          this.setupEventListeners(tab.id);
+          this.onSessionCreated?.();
+          await this.sessionHandle.send(input);
+        } catch (retryErr) {
+          this.stateManager.updateTab(tab.id, { status: "error" });
+          const errorMsg = {
+            id: `msg-${Date.now()}`,
+            role: "system",
+            content: `Failed to reconnect session: ${retryErr instanceof Error ? retryErr.message : String(retryErr)}`,
+            timestamp: Date.now()
+          };
+          this.stateManager.addMessage(tab.id, errorMsg);
+        }
+      } else {
+        this.stateManager.updateTab(tab.id, { status: "error" });
+      }
     }
   }
   async cancel() {
@@ -45508,7 +45634,7 @@ ${diagnostic}`,
     const interruptedMsg = {
       id: `msg-${Date.now()}`,
       role: "system",
-      content: "\u23F9 Interrupted \xB7 What should CodeBuddy do instead?",
+      content: "Interrupted. What should CodeBuddy do instead?",
       timestamp: Date.now()
     };
     this.stateManager.addMessage(tab.id, interruptedMsg);
@@ -45617,7 +45743,7 @@ var InputController = class {
     this.textareaEl.style.height = Math.min(this.textareaEl.scrollHeight, 200) + "px";
   }
   resetHeight() {
-    this.textareaEl.style.height = "40px";
+    this.textareaEl.style.height = "";
   }
   focus() {
     this.textareaEl.focus();
@@ -45634,7 +45760,7 @@ var MODE_CONFIG = [
   { id: "plan", label: "Plan", icon: "list-checks", desc: "Plan only, no edits" },
   { id: "craft", label: "Craft", icon: "wand-2", desc: "Auto-accept edits" }
 ];
-var CodebuddianChatView = class extends import_obsidian2.ItemView {
+var CodebuddianChatView = class extends import_obsidian3.ItemView {
   stateManager;
   tabManager;
   conversationController;
@@ -45644,15 +45770,32 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
   messagesContainer;
   textareaEl;
   sendButtonEl;
-  modelSelectEl;
-  effortSelectEl;
   stopBtnEl;
   modeBtnEl;
   modeBtnLabelEl;
   modeMenuEl;
   inputWrapperEl;
+  thinkBtnEl;
   runtime = null;
-  modelsLoaded = false;
+  /**
+   * Local model list — populated from runtime.getCachedModels() (reads
+   * plugin settings synchronously) or runtime.getAvailableModels() (live
+   * SDK query after session established).
+   *
+   * No global state (AVAILABLE_MODELS), no plugin reference (getPlugin()).
+   * The runtime is the single source of truth.
+   */
+  models = [{ id: "", label: "Default" }];
+  // Pill dropdown groups
+  modeMenuGroupEl;
+  modelMenuGroupEl;
+  modelBtnEl;
+  modelBtnLabelEl;
+  modelMenuEl;
+  effortMenuGroupEl;
+  effortBtnEl;
+  effortBtnLabelEl;
+  effortMenuEl;
   constructor(leaf) {
     super(leaf);
     this.stateManager = new ChatStateManager();
@@ -45683,7 +45826,7 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
     titleSlot.createEl("h4", { text: "CodeBuddy", cls: "codebuddian-title-text" });
     const actionsEl = headerEl.createDiv({ cls: "codebuddian-header-actions" });
     const newTabBtn = actionsEl.createDiv({ cls: "codebuddian-header-btn", attr: { "aria-label": "New tab" } });
-    (0, import_obsidian2.setIcon)(newTabBtn, "square-plus");
+    (0, import_obsidian3.setIcon)(newTabBtn, "square-plus");
     newTabBtn.addEventListener("click", () => this.tabManager.createTab());
     const tabBarEl = container.createDiv({ cls: "codebuddian-tab-bar-container" });
     this.tabBar = new TabBar(tabBarEl, {
@@ -45694,87 +45837,103 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
     const messagesWrapper = container.createDiv({ cls: "codebuddian-messages-wrapper" });
     this.messagesContainer = messagesWrapper.createDiv({ cls: "codebuddian-messages" });
     const inputContainer = container.createDiv({ cls: "codebuddian-input-container" });
-    const inputToolbar = inputContainer.createDiv({ cls: "codebuddian-input-toolbar-row" });
-    const modelGroup = inputToolbar.createDiv({ cls: "codebuddian-toolbar-group" });
-    (0, import_obsidian2.setIcon)(modelGroup.createSpan({ cls: "codebuddian-toolbar-group-icon" }), "cpu");
-    this.modelSelectEl = modelGroup.createEl("select", { cls: "codebuddian-select codebuddian-toolbar-select" });
-    this.renderModelOptions();
-    this.modelSelectEl.addEventListener("change", () => {
-      const tab = this.stateManager.getActiveTab();
-      if (tab) {
-        this.stateManager.updateTab(tab.id, { model: this.modelSelectEl.value });
-        this.applyModelToSession(this.modelSelectEl.value);
+    this.inputWrapperEl = inputContainer.createDiv({ cls: "codebuddian-input-wrapper" });
+    this.textareaEl = this.inputWrapperEl.createEl("textarea", {
+      cls: "codebuddian-input",
+      attr: {
+        placeholder: "Message CodeBuddy\u2026 (Enter to send, Shift+Enter for newline)"
       }
     });
-    const modeGroup = inputToolbar.createDiv({ cls: "codebuddian-toolbar-group codebuddian-mode-group" });
-    this.modeBtnEl = modeGroup.createEl("button", {
+    const inputToolbar = this.inputWrapperEl.createDiv({ cls: "codebuddian-input-toolbar-row" });
+    this.modelMenuGroupEl = inputToolbar.createDiv({ cls: "codebuddian-pill-group" });
+    this.modelBtnEl = this.modelMenuGroupEl.createEl("button", {
+      cls: "codebuddian-pill-btn",
+      attr: { type: "button", "aria-label": "Model", "aria-haspopup": "true" }
+    });
+    (0, import_obsidian3.setIcon)(this.modelBtnEl.createSpan({ cls: "codebuddian-pill-icon" }), "at-sign");
+    this.modelBtnLabelEl = this.modelBtnEl.createSpan({ cls: "codebuddian-pill-label" });
+    (0, import_obsidian3.setIcon)(this.modelBtnEl.createSpan({ cls: "codebuddian-pill-caret" }), "chevron-down");
+    this.modelMenuEl = this.modelMenuGroupEl.createDiv({ cls: "codebuddian-pill-menu" });
+    this.modelBtnEl.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.closeAllMenus();
+      this.refreshModels();
+      this.modelMenuGroupEl.toggleClass("is-open", !this.modelMenuGroupEl.hasClass("is-open"));
+    });
+    this.modeMenuGroupEl = inputToolbar.createDiv({ cls: "codebuddian-pill-group codebuddian-mode-group" });
+    this.modeBtnEl = this.modeMenuGroupEl.createEl("button", {
       cls: "codebuddian-mode-dropdown-btn",
-      attr: { "aria-label": "Mode", "aria-haspopup": "true" }
+      attr: { "aria-label": "Mode", "aria-haspopup": "true", type: "button" }
     });
     const modeIconEl = this.modeBtnEl.createSpan({ cls: "codebuddian-mode-dropdown-icon" });
-    (0, import_obsidian2.setIcon)(modeIconEl, "message-circle");
+    (0, import_obsidian3.setIcon)(modeIconEl, "message-circle");
     this.modeBtnLabelEl = this.modeBtnEl.createSpan({ cls: "codebuddian-mode-dropdown-label", text: "Ask" });
     const caretEl = this.modeBtnEl.createSpan({ cls: "codebuddian-mode-dropdown-caret" });
-    (0, import_obsidian2.setIcon)(caretEl, "chevron-down");
-    this.modeMenuEl = modeGroup.createDiv({ cls: "codebuddian-mode-menu" });
+    (0, import_obsidian3.setIcon)(caretEl, "chevron-down");
+    this.modeMenuEl = this.modeMenuGroupEl.createDiv({ cls: "codebuddian-mode-menu" });
     for (const modeCfg of MODE_CONFIG) {
       const item = this.modeMenuEl.createEl("button", {
         cls: "codebuddian-mode-menu-item",
-        attr: { "data-mode": modeCfg.id, title: modeCfg.desc }
+        attr: { "data-mode": modeCfg.id, title: modeCfg.desc, type: "button" }
       });
       const itemIcon = item.createSpan({ cls: "codebuddian-mode-menu-item-icon" });
-      (0, import_obsidian2.setIcon)(itemIcon, modeCfg.icon);
+      (0, import_obsidian3.setIcon)(itemIcon, modeCfg.icon);
       const textWrap = item.createDiv({ cls: "codebuddian-mode-menu-item-text" });
       textWrap.createDiv({ cls: "codebuddian-mode-menu-item-label", text: modeCfg.label });
       textWrap.createDiv({ cls: "codebuddian-mode-menu-item-desc", text: modeCfg.desc });
       item.addEventListener("click", (e) => {
         e.stopPropagation();
         this.handleSetMode(modeCfg.id);
-        this.closeModeMenu();
+        this.closeAllMenus();
       });
     }
     this.modeBtnEl.addEventListener("click", (e) => {
       e.stopPropagation();
-      modeGroup.toggleClass("is-open", !modeGroup.hasClass("is-open"));
+      this.closeAllMenus();
+      this.modeMenuGroupEl.toggleClass("is-open", !this.modeMenuGroupEl.hasClass("is-open"));
     });
-    this.registerDomEvent(this.containerEl.ownerDocument, "click", () => {
-      this.closeModeMenu();
+    this.effortMenuGroupEl = inputToolbar.createDiv({ cls: "codebuddian-pill-group" });
+    this.effortBtnEl = this.effortMenuGroupEl.createEl("button", {
+      cls: "codebuddian-pill-btn",
+      attr: { type: "button", "aria-label": "Effort", "aria-haspopup": "true" }
     });
-    const effortGroup = inputToolbar.createDiv({ cls: "codebuddian-toolbar-group" });
-    (0, import_obsidian2.setIcon)(effortGroup.createSpan({ cls: "codebuddian-toolbar-group-icon" }), "gauge");
-    this.effortSelectEl = effortGroup.createEl("select", { cls: "codebuddian-select codebuddian-toolbar-select" });
-    EFFORT_OPTIONS.forEach((e) => {
-      const opt = this.effortSelectEl.createEl("option", { text: e.label });
-      opt.value = e.id;
+    this.effortBtnLabelEl = this.effortBtnEl.createSpan({ cls: "codebuddian-pill-label" });
+    (0, import_obsidian3.setIcon)(this.effortBtnEl.createSpan({ cls: "codebuddian-pill-caret" }), "chevron-down");
+    this.effortMenuEl = this.effortMenuGroupEl.createDiv({ cls: "codebuddian-pill-menu" });
+    this.renderEffortMenu();
+    this.effortBtnEl.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.closeAllMenus();
+      this.effortMenuGroupEl.toggleClass("is-open", !this.effortMenuGroupEl.hasClass("is-open"));
     });
-    this.effortSelectEl.addEventListener("change", () => {
+    this.thinkBtnEl = inputToolbar.createEl("button", {
+      cls: "codebuddian-toolbar-btn codebuddian-think-btn",
+      attr: { "aria-label": "Toggle thinking mode", title: "Thinking (shows reasoning)" }
+    });
+    (0, import_obsidian3.setIcon)(this.thinkBtnEl, "brain");
+    this.thinkBtnEl.addEventListener("click", () => {
       const tab = this.stateManager.getActiveTab();
-      if (tab) {
-        this.stateManager.updateTab(tab.id, { effort: this.effortSelectEl.value });
-        this.applyEffortToSession(this.effortSelectEl.value);
-      }
+      if (!tab) return;
+      const newVal = !tab.thinkingEnabled;
+      this.stateManager.updateTab(tab.id, { thinkingEnabled: newVal });
+      this.applyThinkingToSession(newVal);
     });
     this.stopBtnEl = inputToolbar.createEl("button", {
       cls: "codebuddian-toolbar-btn codebuddian-stop-btn",
       attr: { "aria-label": "Stop generation (Esc)" }
     });
-    (0, import_obsidian2.setIcon)(this.stopBtnEl, "square");
+    (0, import_obsidian3.setIcon)(this.stopBtnEl, "square");
     this.stopBtnEl.addEventListener("click", () => {
       this.conversationController.cancel();
     });
-    this.inputWrapperEl = inputContainer.createDiv({ cls: "codebuddian-input-wrapper" });
-    this.textareaEl = this.inputWrapperEl.createEl("textarea", {
-      cls: "codebuddian-input",
-      attr: {
-        placeholder: "Message CodeBuddy\u2026 (Enter to send, Shift+Enter for newline)",
-        rows: "1"
-      }
+    this.registerDomEvent(this.containerEl.ownerDocument, "click", () => {
+      this.closeAllMenus();
     });
     this.sendButtonEl = this.inputWrapperEl.createEl("button", {
       cls: "codebuddian-send-btn",
       attr: { "aria-label": "Send message" }
     });
-    (0, import_obsidian2.setIcon)(this.sendButtonEl, "send");
+    (0, import_obsidian3.setIcon)(this.sendButtonEl, "send");
     this.messageRenderer = new MessageRenderer(this.messagesContainer, this, this.app);
     this.inputController = new InputController(
       this.textareaEl,
@@ -45792,19 +45951,24 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
       return false;
     });
     this.tabManager.ensureAtLeastOneTab();
-    this.tryLoadModels();
+    this.refreshModels();
+    this.renderModelMenu();
+    this.conversationController.onSessionCreated = () => {
+      this.refreshModelsFromSDK();
+    };
   }
   async onClose() {
     await this.conversationController.dispose();
   }
-  closeModeMenu() {
-    const grp = this.modeBtnEl?.parentElement;
-    if (grp) grp.removeClass("is-open");
+  closeAllMenus() {
+    this.modelMenuGroupEl?.removeClass("is-open");
+    this.modeMenuGroupEl?.removeClass("is-open");
+    this.effortMenuGroupEl?.removeClass("is-open");
   }
   async handleSetMode(mode) {
     await this.conversationController.setMode(mode);
     const label = MODE_CONFIG.find((m) => m.id === mode)?.label ?? mode;
-    new import_obsidian2.Notice(`${label} mode`, 1500);
+    new import_obsidian3.Notice(`${label} mode`, 1500);
   }
   /** Apply model change to the live SDK session. */
   async applyModelToSession(model) {
@@ -45828,6 +45992,19 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
     } catch {
     }
   }
+  /** Apply thinking toggle via SDK session's setConfig. */
+  async applyThinkingToSession(enabled) {
+    if (!this.runtime) return;
+    try {
+      const sdkSession = this.runtime.getSdkSession();
+      if (sdkSession?.setConfig) {
+        await sdkSession.setConfig({
+          thinking: enabled ? { type: "adaptive" } : { type: "disabled" }
+        });
+      }
+    } catch {
+    }
+  }
   createLogoSvg() {
     const ns = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(ns, "svg");
@@ -45841,34 +46018,103 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
     svg.appendChild(path2);
     return svg;
   }
-  renderModelOptions() {
-    this.modelSelectEl.empty();
-    for (const m of AVAILABLE_MODELS) {
-      const opt = this.modelSelectEl.createEl("option", { text: m.label });
-      opt.value = m.id;
+  // =========================================================================
+  // Model list management — reads directly from runtime, no plugin reference
+  // =========================================================================
+  /**
+   * Refresh model list from runtime's cached models (synchronous).
+   *
+   * The runtime's `getCachedModels()` reads `this.settings.availableModels`
+   * which is the SAME object reference as the plugin's `this.settings`,
+   * so changes made in the Settings tab (Detect models) are immediately
+   * visible here — no need to access the plugin at all.
+   */
+  refreshModels() {
+    if (!this.runtime) {
+      console.log("[codebuddian] refreshModels \u2014 no runtime yet");
+      return;
+    }
+    const cached = this.runtime.getCachedModels();
+    console.log("[codebuddian] refreshModels \u2014 cached models from runtime:", cached.length);
+    if (cached.length > 0) {
+      this.models = [
+        { id: "", label: "Default" },
+        ...cached.map((m) => ({ id: m.id, label: m.name || m.id }))
+      ];
+      this.renderModelMenu();
+      const activeTab = this.stateManager.getActiveTab();
+      if (activeTab?.model) {
+        const modelLabel = this.models.find((m) => m.id === activeTab.model)?.label ?? activeTab.model;
+        this.modelBtnLabelEl.setText(modelLabel);
+      }
     }
   }
-  /** Attempt to fetch real model list from the runtime once a session is active. */
-  async tryLoadModels() {
-    if (this.modelsLoaded) return;
-    for (let i = 0; i < 10; i++) {
-      await new Promise((r) => setTimeout(r, 800));
-      if (!this.runtime) continue;
-      try {
-        const models = await this.runtime.getAvailableModels();
-        if (models.length > 0) {
-          const { setAvailableModels: setAvailableModels2 } = await Promise.resolve().then(() => (init_constants(), constants_exports));
-          setAvailableModels2(models.map((m) => ({ id: m.id, label: m.name })));
-          this.renderModelOptions();
-          const activeTab = this.stateManager.getActiveTab();
-          if (activeTab) {
-            this.modelSelectEl.value = activeTab.model;
-          }
-          this.modelsLoaded = true;
-          break;
+  /**
+   * Fetch live model list from the SDK session and update the selector.
+   * Called after a session is established.
+   */
+  async refreshModelsFromSDK() {
+    if (!this.runtime) return;
+    try {
+      const models = await this.runtime.getAvailableModels();
+      if (models.length > 0) {
+        this.models = [
+          { id: "", label: "Default" },
+          ...models.map((m) => ({ id: m.id, label: m.name || m.id }))
+        ];
+        this.renderModelMenu();
+        const activeTab = this.stateManager.getActiveTab();
+        if (activeTab?.model) {
+          const modelLabel = this.models.find((m) => m.id === activeTab.model)?.label ?? activeTab.model;
+          this.modelBtnLabelEl.setText(modelLabel);
         }
-      } catch {
+        console.log(
+          `[codebuddian] Loaded ${models.length} models from SDK:`,
+          models.map((m) => m.name).join(", ")
+        );
       }
+    } catch (e) {
+      console.warn("[codebuddian] refreshModelsFromSDK failed:", e);
+    }
+  }
+  renderModelMenu() {
+    this.modelMenuEl.empty();
+    console.log("[codebuddian] renderModelMenu \u2014 models count:", this.models.length);
+    for (const m of this.models) {
+      const item = this.modelMenuEl.createEl("button", {
+        cls: "codebuddian-pill-menu-item",
+        attr: { "data-value": m.id, type: "button" }
+      });
+      item.setText(m.label);
+      item.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const tab = this.stateManager.getActiveTab();
+        if (tab) {
+          this.stateManager.updateTab(tab.id, { model: m.id });
+          this.applyModelToSession(m.id);
+          console.log("[codebuddian] Model selected:", m.id, m.label);
+        }
+        this.closeAllMenus();
+      });
+    }
+  }
+  renderEffortMenu() {
+    this.effortMenuEl.empty();
+    for (const e of EFFORT_OPTIONS) {
+      const item = this.effortMenuEl.createEl("button", {
+        cls: "codebuddian-pill-menu-item",
+        attr: { "data-value": e.id, type: "button" }
+      });
+      item.setText(e.label);
+      item.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        const tab = this.stateManager.getActiveTab();
+        if (tab) {
+          this.stateManager.updateTab(tab.id, { effort: e.id });
+          this.applyEffortToSession(e.id);
+        }
+        this.closeAllMenus();
+      });
     }
   }
   renderRafId = null;
@@ -45891,13 +46137,15 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
     );
     const activeTab = this.stateManager.getActiveTab();
     if (activeTab) {
-      this.modelSelectEl.value = activeTab.model;
-      this.effortSelectEl.value = activeTab.effort;
+      const modelLabel = this.models.find((m) => m.id === activeTab.model)?.label ?? activeTab.model;
+      this.modelBtnLabelEl.setText(modelLabel);
+      const effortLabel = EFFORT_OPTIONS.find((e) => e.id === activeTab.effort)?.label ?? activeTab.effort;
+      this.effortBtnLabelEl.setText(effortLabel);
       const activeModeCfg = MODE_CONFIG.find((m) => m.id === activeTab.mode) ?? MODE_CONFIG[0];
       const iconEl = this.modeBtnEl.querySelector(".codebuddian-mode-dropdown-icon");
       if (iconEl) {
         iconEl.empty();
-        (0, import_obsidian2.setIcon)(iconEl, activeModeCfg.icon);
+        (0, import_obsidian3.setIcon)(iconEl, activeModeCfg.icon);
       }
       this.modeBtnLabelEl.setText(activeModeCfg.label);
       this.modeBtnEl.setAttribute("data-mode", activeModeCfg.id);
@@ -45905,11 +46153,20 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
         const isSelected = el.getAttribute("data-mode") === activeTab.mode;
         el.toggleClass("is-active", isSelected);
       });
+      this.modelMenuEl.querySelectorAll(".codebuddian-pill-menu-item").forEach((el) => {
+        const isSelected = el.getAttribute("data-value") === activeTab.model;
+        el.toggleClass("is-active", isSelected);
+      });
+      this.effortMenuEl.querySelectorAll(".codebuddian-pill-menu-item").forEach((el) => {
+        const isSelected = el.getAttribute("data-value") === activeTab.effort;
+        el.toggleClass("is-active", isSelected);
+      });
       this.inputWrapperEl.removeClass("codebuddian-mode-ask", "codebuddian-mode-plan", "codebuddian-mode-craft");
       this.inputWrapperEl.addClass(`codebuddian-mode-${activeTab.mode}`);
       const isStreaming = activeTab.status === "streaming";
       this.stopBtnEl.toggleClass("is-visible", isStreaming);
       this.sendButtonEl.toggleClass("is-disabled", isStreaming);
+      this.thinkBtnEl?.toggleClass("is-active", activeTab.thinkingEnabled);
     }
     if (activeTab) {
       if (this.lastRenderedTabId !== activeTab.id) {
@@ -45927,11 +46184,8 @@ var CodebuddianChatView = class extends import_obsidian2.ItemView {
   }
 };
 
-// src/main.ts
-init_constants();
-
 // src/features/settings/CodebuddianSettingsTab.ts
-var import_obsidian3 = require("obsidian");
+var import_obsidian4 = require("obsidian");
 
 // src/providers/codebuddy/cli-detect.ts
 var import_child_process = require("child_process");
@@ -45996,179 +46250,26 @@ var CliDetector = class {
   }
 };
 
-// src/features/settings/CodebuddianSettingsTab.ts
-var CodebuddianSettingsTab = class extends import_obsidian3.PluginSettingTab {
-  plugin;
-  cliDetector;
-  constructor(app, plugin) {
-    super(app, plugin);
-    this.plugin = plugin;
-    this.cliDetector = new CliDetector();
-  }
-  display() {
-    const { containerEl } = this;
-    containerEl.empty();
-    containerEl.createEl("h2", { text: "Codebuddian Settings" });
-    new import_obsidian3.Setting(containerEl).setName("CodeBuddy CLI path").setDesc("Path to codebuddy binary. Leave empty for auto-detection.").addText((text) => text.setPlaceholder("Auto-detect").setValue(this.plugin.settings.cliPath).onChange(async (value) => {
-      this.plugin.settings.cliPath = value;
-      await this.plugin.saveSettings();
-    })).addButton((btn) => btn.setButtonText("Detect").onClick(async () => {
-      const path2 = await this.cliDetector.detect();
-      if (path2) {
-        this.plugin.settings.cliPath = path2;
-        await this.plugin.saveSettings();
-        this.display();
-        new import_obsidian3.Notice(`Found: ${path2}`);
-      } else {
-        new import_obsidian3.Notice("CodeBuddy CLI not found");
-      }
-    }));
-    new import_obsidian3.Setting(containerEl).setName("Model").setDesc("Default model for CodeBuddy sessions").addText((text) => text.setPlaceholder("auto").setValue(this.plugin.settings.model).onChange(async (value) => {
-      this.plugin.settings.model = value;
-      await this.plugin.saveSettings();
-    }));
-    new import_obsidian3.Setting(containerEl).setName("Permission mode").setDesc("Default permission mode for tool approvals").addDropdown((dropdown) => dropdown.addOptions({
-      "default": "Default (ask for approval)",
-      "acceptEdits": "Accept Edits (auto-approve file edits)",
-      "plan": "Plan Mode (explore first)",
-      "bypassPermissions": "Bypass All (\u26A0\uFE0F dangerous)"
-    }).setValue(this.plugin.settings.permissionMode).onChange(async (value) => {
-      this.plugin.settings.permissionMode = value;
-      await this.plugin.saveSettings();
-    }));
-    new import_obsidian3.Setting(containerEl).setName("Append system prompt").setDesc("Additional system prompt appended to every session").addTextArea((text) => text.setPlaceholder("Additional instructions for CodeBuddy\u2026").setValue(this.plugin.settings.appendSystemPrompt).onChange(async (value) => {
-      this.plugin.settings.appendSystemPrompt = value;
-      await this.plugin.saveSettings();
-    }));
-    new import_obsidian3.Setting(containerEl).setName("MCP config path").setDesc("Path to MCP servers config file (relative to vault root)").addText((text) => text.setPlaceholder(".codebuddian/mcp.json").setValue(this.plugin.settings.mcpConfigPath).onChange(async (value) => {
-      this.plugin.settings.mcpConfigPath = value;
-      await this.plugin.saveSettings();
-    }));
-    new import_obsidian3.Setting(containerEl).setName("Additional directories").setDesc("Extra directories to allow tool access (comma-separated)").addText((text) => text.setPlaceholder("/path/to/dir1, /path/to/dir2").setValue(this.plugin.settings.addDirs.join(", ")).onChange(async (value) => {
-      this.plugin.settings.addDirs = value.split(",").map((s) => s.trim()).filter(Boolean);
-      await this.plugin.saveSettings();
-    }));
-    new import_obsidian3.Setting(containerEl).setName("Max turns").setDesc("Maximum agentic turns per session (0 = unlimited)").addText((text) => text.setValue(String(this.plugin.settings.maxTurns)).onChange(async (value) => {
-      this.plugin.settings.maxTurns = parseInt(value) || 0;
-      await this.plugin.saveSettings();
-    }));
-    new import_obsidian3.Setting(containerEl).setName("Reasoning effort").setDesc("Reasoning effort level").addDropdown((dropdown) => dropdown.addOptions({
-      "minimal": "Minimal",
-      "low": "Low",
-      "medium": "Medium",
-      "high": "High",
-      "xhigh": "Extra High",
-      "max": "Maximum"
-    }).setValue(this.plugin.settings.effort).onChange(async (value) => {
-      this.plugin.settings.effort = value;
-      await this.plugin.saveSettings();
-    }));
-    new import_obsidian3.Setting(containerEl).setName("Debug mode").setDesc("Enable CLI debug output").addToggle((toggle) => toggle.setValue(this.plugin.settings.debugMode).onChange(async (value) => {
-      this.plugin.settings.debugMode = value;
-      await this.plugin.saveSettings();
-    }));
-    new import_obsidian3.Setting(containerEl).setName("Auto-detect CLI").setDesc("Automatically detect CodeBuddy CLI path on startup").addToggle((toggle) => toggle.setValue(this.plugin.settings.autoDetectCli).onChange(async (value) => {
-      this.plugin.settings.autoDetectCli = value;
-      await this.plugin.saveSettings();
-    }));
+// src/providers/codebuddy/runtime/CodebuddyChatRuntime.ts
+var import_agent_sdk = __toESM(require_lib());
+
+// src/providers/codebuddy/index.ts
+var CODEBUDDY_PROVIDER = {
+  id: "codebuddy",
+  displayName: "CodeBuddy",
+  description: "CodeBuddy CLI \u2013 AI coding agent via Agent SDK",
+  icon: "\u{1F916}",
+  capabilities: {
+    chat: true,
+    inlineEdit: true,
+    planMode: true,
+    mcp: true,
+    resume: true,
+    slashCommands: true,
+    skills: true,
+    agents: true
   }
 };
-
-// src/core/providers/ProviderRegistry.ts
-var ProviderRegistry = class {
-  providers = /* @__PURE__ */ new Map();
-  instances = /* @__PURE__ */ new Map();
-  activeProviderId = null;
-  register(descriptor, factory) {
-    this.providers.set(descriptor.id, { descriptor, factory });
-    if (!this.activeProviderId) {
-      this.activeProviderId = descriptor.id;
-    }
-  }
-  get(id) {
-    if (!this.instances.has(id)) {
-      const entry = this.providers.get(id);
-      if (entry) {
-        this.instances.set(id, entry.factory());
-      }
-    }
-    return this.instances.get(id);
-  }
-  getDescriptor(id) {
-    return this.providers.get(id)?.descriptor;
-  }
-  getAllDescriptors() {
-    return Array.from(this.providers.values()).map((e) => e.descriptor);
-  }
-  getActive() {
-    return this.activeProviderId ? this.get(this.activeProviderId) ?? null : null;
-  }
-  getActiveId() {
-    return this.activeProviderId;
-  }
-  setActive(id) {
-    if (!this.providers.has(id)) {
-      throw new Error(`Provider not found: ${id}`);
-    }
-    this.activeProviderId = id;
-  }
-  async disposeAll() {
-    for (const runtime of this.instances.values()) {
-      await runtime.dispose();
-    }
-    this.instances.clear();
-  }
-};
-
-// src/core/security/ApprovalManager.ts
-var ApprovalManager = class {
-  callback = null;
-  pendingApprovals = /* @__PURE__ */ new Map();
-  setCallback(cb) {
-    this.callback = cb;
-  }
-  async requestApproval(req) {
-    if (!this.callback) {
-      return { id: req.id, approved: true };
-    }
-    return new Promise((resolve) => {
-      this.pendingApprovals.set(req.id, { request: req, resolve });
-      const cb = this.callback;
-      if (cb) {
-        cb(req).then((result) => {
-          this.pendingApprovals.delete(req.id);
-          resolve(result);
-        });
-      }
-    });
-  }
-  cancelAll() {
-    for (const [id, { resolve }] of this.pendingApprovals) {
-      resolve({ id, approved: false });
-    }
-    this.pendingApprovals.clear();
-  }
-  get pendingCount() {
-    return this.pendingApprovals.size;
-  }
-};
-
-// src/shared/icons.ts
-var import_obsidian4 = require("obsidian");
-function registerIcons() {
-  (0, import_obsidian4.addIcon)("codebuddian-icon", `
-		<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-			<rect x="10" y="10" width="80" height="80" rx="15" fill="currentColor" opacity="0.15"/>
-			<text x="50" y="65" font-size="50" text-anchor="middle" fill="currentColor">\u{1F916}</text>
-		</svg>
-	`);
-}
-
-// src/i18n/i18n.ts
-var currentLocale = "en";
-function setLocale(locale) {
-  currentLocale = locale;
-}
 
 // src/utils/logger.ts
 var Logger = class {
@@ -46200,28 +46301,7 @@ var Logger = class {
     }
   }
 };
-var logger = new Logger();
-
-// src/providers/codebuddy/runtime/CodebuddyChatRuntime.ts
-var import_agent_sdk = __toESM(require_lib());
-
-// src/providers/codebuddy/index.ts
-var CODEBUDDY_PROVIDER = {
-  id: "codebuddy",
-  displayName: "CodeBuddy",
-  description: "CodeBuddy CLI \u2013 AI coding agent via Agent SDK",
-  icon: "\u{1F916}",
-  capabilities: {
-    chat: true,
-    inlineEdit: true,
-    planMode: true,
-    mcp: true,
-    resume: true,
-    slashCommands: true,
-    skills: true,
-    agents: true
-  }
-};
+var logger2 = new Logger();
 
 // src/providers/codebuddy/env.ts
 var fs = __toESM(require("fs"));
@@ -46405,10 +46485,10 @@ var CodebuddyChatRuntime = class {
     sessionOpts.canUseTool = canUseTool;
     let sdkSession;
     if (opts.resume) {
-      logger.debug(`[Runtime] Resuming session: ${opts.resume}`);
+      logger2.debug(`[Runtime] Resuming session: ${opts.resume}`);
       sdkSession = (0, import_agent_sdk.unstable_v2_resumeSession)(opts.resume, sessionOpts);
     } else {
-      logger.debug(`[Runtime] Creating new session`);
+      logger2.debug(`[Runtime] Creating new session`);
       sdkSession = (0, import_agent_sdk.unstable_v2_createSession)(sessionOpts);
     }
     await sdkSession.connect();
@@ -46416,7 +46496,7 @@ var CodebuddyChatRuntime = class {
     this.state.sessionId = sessionId;
     this.currentSdkSession = sdkSession;
     this.currentSessionHandle = new SdkSessionHandle(sessionId, sdkSession, this);
-    logger.info(`[Runtime] Session started: ${sessionId}`);
+    logger2.info(`[Runtime] Session started: ${sessionId}`);
     return this.currentSessionHandle;
   }
   getActiveSession() {
@@ -46430,16 +46510,47 @@ var CodebuddyChatRuntime = class {
       return [];
     }
     try {
+      const rawModels = await this.currentSdkSession.getAvailableModelsRaw();
+      if (rawModels && rawModels.length > 0) {
+        const models = rawModels.filter((m) => !m.disabled && m.configurable !== false).map((m) => ({
+          id: m.id,
+          name: m.name || m.id,
+          description: m.descriptionZh || m.descriptionEn || m.description
+        }));
+        this.settings.availableModels = models.map((m) => ({ id: m.id, name: m.name }));
+        return models;
+      }
+    } catch (e) {
+      logger2.debug("[Runtime] getAvailableModelsRaw failed, trying simplified:", e);
+    }
+    try {
       const models = await this.currentSdkSession.getAvailableModels();
-      return models.map((m) => ({
+      const result = models.map((m) => ({
         id: m.modelId,
         name: m.name,
         description: m.description
       }));
+      this.settings.availableModels = result.map((m) => ({ id: m.id, name: m.name }));
+      return result;
     } catch (e) {
-      logger.warn("[Runtime] getAvailableModels failed:", e);
+      logger2.warn("[Runtime] getAvailableModels failed:", e);
       return [];
     }
+  }
+  /**
+   * Get cached models from plugin settings (synchronous, no session needed).
+   *
+   * The runtime's `this.settings` is the same object reference as the plugin's
+   * `this.settings` (set via the factory closure), so mutations made in the
+   * settings tab (e.g., "Detect models") are immediately visible here.
+   */
+  getCachedModels() {
+    const cached = this.settings?.availableModels;
+    if (!cached || cached.length === 0) return [];
+    return cached.map((m) => ({
+      id: m.id,
+      name: m.name || m.id
+    }));
   }
   async dispose() {
     if (this.currentSessionHandle) {
@@ -46460,13 +46571,13 @@ var CodebuddyChatRuntime = class {
       const detected = findCodebuddyExecutable();
       if (detected) {
         resolvedCliPath = detected;
-        logger.info(`[Runtime] Auto-detected codebuddy CLI: ${detected}`);
+        logger2.info(`[Runtime] Auto-detected codebuddy CLI: ${detected}`);
       }
     }
     if (resolvedCliPath) {
       const real = realCliPath(resolvedCliPath);
       if (real !== resolvedCliPath) {
-        logger.info(`[Runtime] Resolved CLI symlink: ${resolvedCliPath} -> ${real}`);
+        logger2.info(`[Runtime] Resolved CLI symlink: ${resolvedCliPath} -> ${real}`);
         resolvedCliPath = real;
       }
     }
@@ -46475,7 +46586,7 @@ var CodebuddyChatRuntime = class {
     const stderrCallback = (data) => {
       stderrLines.push(data);
       while (stderrLines.join("").length > 4096) stderrLines.shift();
-      logger.debug(`[CLI stderr] ${data.trimEnd()}`);
+      logger2.debug(`[CLI stderr] ${data.trimEnd()}`);
     };
     const options = {
       cwd: opts.cwd || this.vaultPath,
@@ -46488,7 +46599,7 @@ var CodebuddyChatRuntime = class {
     };
     if (nodePath) {
       options.executable = nodePath;
-      logger.info(`[Runtime] Using node executable: ${nodePath}`);
+      logger2.info(`[Runtime] Using node executable: ${nodePath}`);
     }
     options.stderr = stderrCallback;
     if (opts.model || this.settings.model) {
@@ -46496,6 +46607,9 @@ var CodebuddyChatRuntime = class {
     }
     if (opts.effort || this.settings.effort) {
       options.effort = opts.effort || this.settings.effort;
+    }
+    if (opts.thinkingEnabled !== void 0) {
+      options.thinking = opts.thinkingEnabled ? { type: "adaptive" } : { type: "disabled" };
     }
     if (opts.maxTurns || this.settings.maxTurns) {
       options.maxTurns = opts.maxTurns || this.settings.maxTurns;
@@ -46554,7 +46668,7 @@ ${this.settings.appendSystemPrompt}` } : { append: this.settings.appendSystemPro
   // -------------------------------------------------------------------------
   createCanUseTool() {
     return async (toolName, input, options) => {
-      logger.debug(`[canUseTool] ${toolName}`);
+      logger2.debug(`[canUseTool] ${toolName}`);
       const result = await this.approvalManager.requestApproval({
         id: options.toolUseID || `tool-${Date.now()}`,
         tool: toolName,
@@ -46607,11 +46721,10 @@ var SdkSessionHandle = class {
     this.ensureConsumer();
   }
   async cancel() {
-    this.abortController.abort();
     try {
       await this.sdkSession.interrupt();
     } catch (e) {
-      logger.warn("[Session] Interrupt failed:", e);
+      logger2.warn("[Session] Interrupt failed:", e);
     }
     this._status = "idle";
   }
@@ -46661,9 +46774,12 @@ var SdkSessionHandle = class {
         this.handleSDKMessage(msg);
       }
     } catch (e) {
-      if (e instanceof Error && e.message?.includes("abort")) {
+      const msg = e instanceof Error ? e.message : String(e);
+      const isNormalStop = /abort|interrupt|cancel/i.test(msg);
+      if (isNormalStop) {
+        logger2.debug("[Session] Consumer stopped due to interrupt/cancel");
       } else {
-        logger.error("[Session] Consumer error:", e);
+        logger2.error("[Session] Consumer error:", e);
         this.emit("error", { type: "error", data: { error: e }, timestamp: Date.now() });
       }
     } finally {
@@ -46676,7 +46792,7 @@ var SdkSessionHandle = class {
     switch (msg.type) {
       case "system": {
         const sys = msg;
-        logger.debug(`[Session] System init: model=${sys.model}, session=${sys.session_id}`);
+        logger2.debug(`[Session] System init: model=${sys.model}, session=${sys.session_id}`);
         if (sys.model) {
           this.runtime.getState().model = sys.model;
         }
@@ -46843,7 +46959,7 @@ var SdkSessionHandle = class {
         break;
       }
       default:
-        logger.debug(`[Session] Unhandled message type: ${msg.type}`);
+        logger2.debug(`[Session] Unhandled message type: ${msg.type}`);
     }
   }
   emit(evt, event) {
@@ -46853,7 +46969,7 @@ var SdkSessionHandle = class {
         try {
           cb(event);
         } catch (e) {
-          logger.error("[Session] Event listener error:", e);
+          logger2.error("[Session] Event listener error:", e);
         }
       }
     }
@@ -46864,13 +46980,299 @@ var SdkSessionHandle = class {
           try {
             cb(event);
           } catch (e) {
-            logger.error("[Session] Wildcard listener error:", e);
+            logger2.error("[Session] Wildcard listener error:", e);
           }
         }
       }
     }
   }
 };
+
+// src/core/security/ApprovalManager.ts
+var ApprovalManager = class {
+  callback = null;
+  pendingApprovals = /* @__PURE__ */ new Map();
+  setCallback(cb) {
+    this.callback = cb;
+  }
+  async requestApproval(req) {
+    if (!this.callback) {
+      return { id: req.id, approved: true };
+    }
+    return new Promise((resolve) => {
+      this.pendingApprovals.set(req.id, { request: req, resolve });
+      const cb = this.callback;
+      if (cb) {
+        cb(req).then((result) => {
+          this.pendingApprovals.delete(req.id);
+          resolve(result);
+        });
+      }
+    });
+  }
+  cancelAll() {
+    for (const [id, { resolve }] of this.pendingApprovals) {
+      resolve({ id, approved: false });
+    }
+    this.pendingApprovals.clear();
+  }
+  get pendingCount() {
+    return this.pendingApprovals.size;
+  }
+};
+
+// src/features/settings/CodebuddianSettingsTab.ts
+var CodebuddianSettingsTab = class extends import_obsidian4.PluginSettingTab {
+  plugin;
+  cliDetector;
+  constructor(app, plugin) {
+    super(app, plugin);
+    this.plugin = plugin;
+    this.cliDetector = new CliDetector();
+  }
+  display() {
+    const { containerEl } = this;
+    containerEl.empty();
+    containerEl.createEl("h2", { text: "Codebuddian Settings" });
+    new import_obsidian4.Setting(containerEl).setName("CodeBuddy CLI path").setDesc("Path to codebuddy binary. Leave empty for auto-detection.").addText((text) => text.setPlaceholder("Auto-detect").setValue(this.plugin.settings.cliPath).onChange(async (value) => {
+      this.plugin.settings.cliPath = value;
+      await this.plugin.saveSettings();
+    })).addButton((btn) => btn.setButtonText("Detect").onClick(async () => {
+      const path2 = await this.cliDetector.detect();
+      if (path2) {
+        this.plugin.settings.cliPath = path2;
+        await this.plugin.saveSettings();
+        this.display();
+        new import_obsidian4.Notice(`Found: ${path2}`);
+      } else {
+        new import_obsidian4.Notice("CodeBuddy CLI not found");
+      }
+    }));
+    new import_obsidian4.Setting(containerEl).setName("Model").setDesc("Default model for CodeBuddy sessions").addText((text) => text.setPlaceholder("auto").setValue(this.plugin.settings.model).onChange(async (value) => {
+      this.plugin.settings.model = value;
+      await this.plugin.saveSettings();
+    }));
+    new import_obsidian4.Setting(containerEl).setName("Available models").setDesc("Detect models from CodeBuddy CLI and cache them for the model selector").addButton((btn) => btn.setButtonText("Detect models").onClick(async () => {
+      btn.setDisabled(true);
+      btn.setButtonText("Detecting...");
+      try {
+        const vaultPath = this.app.vault.adapter.getBasePath?.() ?? "";
+        const runtime = new CodebuddyChatRuntime(
+          this.plugin.settings,
+          new ApprovalManager(),
+          vaultPath
+        );
+        const session = await runtime.start({ cwd: vaultPath || process.cwd() });
+        const models = await runtime.getAvailableModels();
+        await session.close();
+        await runtime.dispose();
+        this.plugin.settings.availableModels = models.map((m) => ({ id: m.id, name: m.name }));
+        await this.plugin.saveSettings();
+        this.display();
+        new import_obsidian4.Notice(`Found ${models.length} models`);
+      } catch (e) {
+        new import_obsidian4.Notice(`Failed: ${e instanceof Error ? e.message : String(e)}`);
+      } finally {
+        btn.setDisabled(false);
+        btn.setButtonText("Detect models");
+      }
+    }));
+    if (this.plugin.settings.availableModels.length > 0) {
+      const modelsEl = containerEl.createDiv({ cls: "codebuddian-detected-models" });
+      modelsEl.createEl("small", {
+        text: `Cached: ${this.plugin.settings.availableModels.map((m) => m.name || m.id).join(", ")}`,
+        cls: "codebuddian-muted-text"
+      });
+    }
+    new import_obsidian4.Setting(containerEl).setName("Permission mode").setDesc("Default permission mode for tool approvals").addDropdown((dropdown) => dropdown.addOptions({
+      "default": "Default (ask for approval)",
+      "acceptEdits": "Accept Edits (auto-approve file edits)",
+      "plan": "Plan Mode (explore first)",
+      "bypassPermissions": "Bypass All (\u26A0\uFE0F dangerous)"
+    }).setValue(this.plugin.settings.permissionMode).onChange(async (value) => {
+      this.plugin.settings.permissionMode = value;
+      await this.plugin.saveSettings();
+    }));
+    new import_obsidian4.Setting(containerEl).setName("Append system prompt").setDesc("Additional system prompt appended to every session").addTextArea((text) => text.setPlaceholder("Additional instructions for CodeBuddy\u2026").setValue(this.plugin.settings.appendSystemPrompt).onChange(async (value) => {
+      this.plugin.settings.appendSystemPrompt = value;
+      await this.plugin.saveSettings();
+    }));
+    new import_obsidian4.Setting(containerEl).setName("MCP config path").setDesc("Path to MCP servers config file (relative to vault root)").addText((text) => text.setPlaceholder(".codebuddian/mcp.json").setValue(this.plugin.settings.mcpConfigPath).onChange(async (value) => {
+      this.plugin.settings.mcpConfigPath = value;
+      await this.plugin.saveSettings();
+    }));
+    new import_obsidian4.Setting(containerEl).setName("Additional directories").setDesc("Extra directories to allow tool access (comma-separated)").addText((text) => text.setPlaceholder("/path/to/dir1, /path/to/dir2").setValue(this.plugin.settings.addDirs.join(", ")).onChange(async (value) => {
+      this.plugin.settings.addDirs = value.split(",").map((s) => s.trim()).filter(Boolean);
+      await this.plugin.saveSettings();
+    }));
+    new import_obsidian4.Setting(containerEl).setName("Max turns").setDesc("Maximum agentic turns per session (0 = unlimited)").addText((text) => text.setValue(String(this.plugin.settings.maxTurns)).onChange(async (value) => {
+      this.plugin.settings.maxTurns = parseInt(value) || 0;
+      await this.plugin.saveSettings();
+    }));
+    new import_obsidian4.Setting(containerEl).setName("Reasoning effort").setDesc("Reasoning effort level").addDropdown((dropdown) => dropdown.addOptions({
+      "minimal": "Minimal",
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "xhigh": "Extra High",
+      "max": "Maximum"
+    }).setValue(this.plugin.settings.effort).onChange(async (value) => {
+      this.plugin.settings.effort = value;
+      await this.plugin.saveSettings();
+    }));
+    new import_obsidian4.Setting(containerEl).setName("Debug mode").setDesc("Enable CLI debug output").addToggle((toggle) => toggle.setValue(this.plugin.settings.debugMode).onChange(async (value) => {
+      this.plugin.settings.debugMode = value;
+      await this.plugin.saveSettings();
+    }));
+    new import_obsidian4.Setting(containerEl).setName("Auto-detect CLI").setDesc("Automatically detect CodeBuddy CLI path on startup").addToggle((toggle) => toggle.setValue(this.plugin.settings.autoDetectCli).onChange(async (value) => {
+      this.plugin.settings.autoDetectCli = value;
+      await this.plugin.saveSettings();
+    }));
+  }
+};
+
+// src/core/providers/ProviderRegistry.ts
+var ProviderRegistry = class {
+  providers = /* @__PURE__ */ new Map();
+  instances = /* @__PURE__ */ new Map();
+  activeProviderId = null;
+  register(descriptor, factory) {
+    this.providers.set(descriptor.id, { descriptor, factory });
+    if (!this.activeProviderId) {
+      this.activeProviderId = descriptor.id;
+    }
+  }
+  get(id) {
+    if (!this.instances.has(id)) {
+      const entry = this.providers.get(id);
+      if (entry) {
+        this.instances.set(id, entry.factory());
+      }
+    }
+    return this.instances.get(id);
+  }
+  getDescriptor(id) {
+    return this.providers.get(id)?.descriptor;
+  }
+  getAllDescriptors() {
+    return Array.from(this.providers.values()).map((e) => e.descriptor);
+  }
+  getActive() {
+    return this.activeProviderId ? this.get(this.activeProviderId) ?? null : null;
+  }
+  getActiveId() {
+    return this.activeProviderId;
+  }
+  setActive(id) {
+    if (!this.providers.has(id)) {
+      throw new Error(`Provider not found: ${id}`);
+    }
+    this.activeProviderId = id;
+  }
+  async disposeAll() {
+    for (const runtime of this.instances.values()) {
+      await runtime.dispose();
+    }
+    this.instances.clear();
+  }
+};
+
+// src/shared/icons.ts
+var import_obsidian5 = require("obsidian");
+function registerIcons() {
+  (0, import_obsidian5.addIcon)("codebuddian-icon", `
+		<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+			<rect x="4" y="4" width="16" height="16" rx="3" />
+			<circle cx="8.5" cy="8.5" r="1.5" />
+			<circle cx="15.5" cy="8.5" r="1.5" />
+			<path d="M8.5 15.5h7" />
+			<path d="M12 4v-1" /><path d="M12 21v-1" />
+			<path d="M4 12h-1" /><path d="M21 12h-1" />
+		</svg>
+	`);
+  (0, import_obsidian5.addIcon)("cb-status-pending", `
+		<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+			<circle cx="12" cy="12" r="10" />
+			<path d="M12 6v6l4 2" />
+		</svg>
+	`);
+  (0, import_obsidian5.addIcon)("cb-status-running", `
+		<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+			<path d="M12 2v4" /><path d="M12 18v4" />
+			<path d="M4.93 4.93l2.83 2.83" /><path d="M16.24 16.24l2.83 2.83" />
+			<path d="M2 12h4" /><path d="M18 12h4" />
+			<path d="M4.93 19.07l2.83-2.83" /><path d="M16.24 7.76l2.83-2.83" />
+		</svg>
+	`);
+  (0, import_obsidian5.addIcon)("cb-status-completed", `
+		<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+			<circle cx="12" cy="12" r="10" />
+			<path d="m9 12 2 2 4-4" />
+		</svg>
+	`);
+  (0, import_obsidian5.addIcon)("cb-status-error", `
+		<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+			<circle cx="12" cy="12" r="10" />
+			<line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
+		</svg>
+	`);
+  (0, import_obsidian5.addIcon)("cb-status-warning", `
+		<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+			<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+			<line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+		</svg>
+	`);
+  (0, import_obsidian5.addIcon)("cb-status-stop", `
+		<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+			<rect x="4" y="4" width="16" height="16" rx="2" />
+		</svg>
+	`);
+  (0, import_obsidian5.addIcon)("cb-role-user", `
+		<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+			<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+			<circle cx="12" cy="7" r="4" />
+		</svg>
+	`);
+  (0, import_obsidian5.addIcon)("cb-role-assistant", `
+		<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+			<rect x="4" y="4" width="16" height="16" rx="3" />
+			<circle cx="8.5" cy="8.5" r="1.5" /><circle cx="15.5" cy="8.5" r="1.5" />
+			<path d="M8.5 15.5h7" />
+		</svg>
+	`);
+  (0, import_obsidian5.addIcon)("cb-thinking", `
+		<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+			<circle cx="12" cy="12" r="10" />
+			<path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+			<line x1="12" y1="17" x2="12.01" y2="17" />
+		</svg>
+	`);
+  (0, import_obsidian5.addIcon)("cb-wrench", `
+		<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+			<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+		</svg>
+	`);
+  (0, import_obsidian5.addIcon)("cb-file", `
+		<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+			<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+			<polyline points="14 2 14 8 20 8" />
+		</svg>
+	`);
+  (0, import_obsidian5.addIcon)("cb-keyboard", `
+		<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+			<rect x="2" y="4" width="20" height="16" rx="2" />
+			<path d="M6 8h.01" /><path d="M10 8h.01" /><path d="M14 8h.01" /><path d="M18 8h.01" />
+			<path d="M8 12h.01" /><path d="M12 12h.01" /><path d="M16 12h.01" />
+			<path d="M6 16h12" />
+		</svg>
+	`);
+}
+
+// src/i18n/i18n.ts
+var currentLocale = "en";
+function setLocale(locale) {
+  currentLocale = locale;
+}
 
 // src/providers/codebuddy/registration.ts
 function createCodebuddyRegistration(getSettings, approvalManager, vaultPath) {
@@ -46883,14 +47285,13 @@ function createCodebuddyRegistration(getSettings, approvalManager, vaultPath) {
 }
 
 // src/main.ts
-var CodebuddianPlugin = class extends import_obsidian6.Plugin {
+var CodebuddianPlugin = class extends import_obsidian7.Plugin {
   settings = DEFAULT_SETTINGS;
   providerRegistry;
   approvalManager;
-  chatView = null;
   async onload() {
     await this.loadSettings();
-    logger.setLevel(this.settings.debugMode ? 0 /* DEBUG */ : 1 /* INFO */);
+    logger2.setLevel(this.settings.debugMode ? 0 /* DEBUG */ : 1 /* INFO */);
     const locale = window.navigator.language || "en";
     setLocale(locale.startsWith("zh") ? "zh-CN" : "en");
     registerIcons();
@@ -46907,12 +47308,12 @@ var CodebuddianPlugin = class extends import_obsidian6.Plugin {
       () => codebuddyRegistration.factory(this.settings)
     );
     this.registerView(CHAT_VIEW_TYPE, (leaf) => {
-      this.chatView = new CodebuddianChatView(leaf);
+      const view = new CodebuddianChatView(leaf);
       const runtime = this.providerRegistry.getActive();
       if (runtime) {
-        this.chatView.setRuntime(runtime);
+        view.setRuntime(runtime);
       }
-      return this.chatView;
+      return view;
     });
     this.addRibbonIcon("message-circle", "Codebuddian", () => {
       this.activateChatView();
@@ -46938,23 +47339,22 @@ var CodebuddianPlugin = class extends import_obsidian6.Plugin {
       id: "codebuddian.toggle-plan-mode",
       name: "Toggle plan mode",
       callback: () => {
-        new import_obsidian6.Notice("Plan mode toggled");
+        new import_obsidian7.Notice("Plan mode toggled");
       }
     });
     this.addCommand({
       id: "codebuddian.cancel-current-turn",
       name: "Cancel current turn",
       callback: () => {
-        new import_obsidian6.Notice("Current turn cancelled");
+        new import_obsidian7.Notice("Current turn cancelled");
       }
     });
     this.addSettingTab(new CodebuddianSettingsTab(this.app, this));
-    logger.info("Codebuddian plugin loaded");
+    logger2.info("Codebuddian plugin loaded");
   }
   async onunload() {
     await this.providerRegistry.disposeAll();
-    this.chatView = null;
-    logger.info("Codebuddian plugin unloaded");
+    logger2.info("Codebuddian plugin unloaded");
   }
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
@@ -46980,12 +47380,12 @@ var CodebuddianPlugin = class extends import_obsidian6.Plugin {
       (await import("obsidian")).MarkdownView
     );
     if (!activeView) {
-      new import_obsidian6.Notice("No active markdown view");
+      new import_obsidian7.Notice("No active markdown view");
       return;
     }
     const selection = activeView.editor.getSelection();
     if (!selection) {
-      new import_obsidian6.Notice("No text selected");
+      new import_obsidian7.Notice("No text selected");
       return;
     }
     const prompt = "Improve this text";
@@ -47000,7 +47400,7 @@ var CodebuddianPlugin = class extends import_obsidian6.Plugin {
       vaultPath,
       onApply: (newText) => {
         activeView.editor.replaceSelection(newText);
-        new import_obsidian6.Notice("Changes applied");
+        new import_obsidian7.Notice("Changes applied");
       }
     });
     modal.open();
